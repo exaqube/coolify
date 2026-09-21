@@ -21,11 +21,25 @@ class InfisicalClient
      */
     public function fetchSecrets(string $projectId, string $environmentSlug, string $secretPath): FetchedSecrets
     {
-        $response = $this->send('get', '/api/v3/secrets/raw', [
+        $response = $this->raw('get', '/api/v3/secrets/raw', [
             'workspaceId' => $projectId,
             'environment' => $environmentSlug,
             'secretPath' => $secretPath,
-        ], 'fetch secrets');
+        ]);
+
+        // A folder or environment that does not exist yet is not an error - it
+        // simply holds nothing. Infisical answers 404 for it on some versions
+        // and 200 with an empty list on others, so both are normalised here.
+        //
+        // A 404 naming the PROJECT is different and must keep failing: it means
+        // the project id is wrong or the machine identity cannot see it, and
+        // swallowing that would let a misconfigured connection report success
+        // while syncing nothing at all.
+        if ($response->status() === 404 && ! $this->isMissingProject($response)) {
+            return new FetchedSecrets;
+        }
+
+        $this->throwUnlessSuccessful($response, 'fetch secrets');
 
         $values = [];
         $hiddenKeys = [];
@@ -283,6 +297,22 @@ class InfisicalClient
                 "Could not connect to Infisical host {$this->connection->host}: {$e->getMessage()}"
             );
         }
+    }
+
+    /**
+     * Whether a 404 is about the project rather than a folder or environment.
+     *
+     * Verified against a live instance, the two are distinguishable by message:
+     *   project : "Project with ID '...' not found during bot lookup"
+     *   folder  : "Folder with path '...' in environment '...' was not found"
+     */
+    private function isMissingProject(Response $response): bool
+    {
+        $message = (string) $response->json('message', '');
+
+        // Fail closed: an unrecognised 404 is treated as a project problem so
+        // it surfaces, rather than being silently read as "no secrets here".
+        return ! str_contains($message, 'Folder with path');
     }
 
     /**

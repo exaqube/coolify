@@ -249,3 +249,46 @@ it('does not call the api at all when there is nothing to upsert', function () {
 
     Http::assertNothingSent();
 });
+
+it('treats a missing folder or environment as empty rather than an error', function () {
+    Http::fake([
+        '*/api/v1/auth/universal-auth/login' => Http::response(['accessToken' => 'tok']),
+        '*/api/v3/secrets/raw*' => Http::response([
+            'statusCode' => 404,
+            'message' => "Folder with path '/shop-api' in environment 'staging' was not found. Please ensure the folder exists.",
+            'error' => 'NotFound',
+        ], 404),
+    ]);
+
+    $result = (new InfisicalClient(InfisicalConnection::factory()->create()))
+        ->fetchSecrets('proj', 'staging', '/shop-api/');
+
+    expect($result->values)->toBe([])
+        ->and($result->hiddenKeys)->toBe([]);
+});
+
+it('still fails when a 404 names the project, so a wrong id cannot look empty', function () {
+    Http::fake([
+        '*/api/v1/auth/universal-auth/login' => Http::response(['accessToken' => 'tok']),
+        '*/api/v3/secrets/raw*' => Http::response([
+            'statusCode' => 404,
+            'message' => "Project with ID 'nope' not found during bot lookup. Are you sure you are using the correct project ID?",
+            'error' => 'NotFound',
+        ], 404),
+    ]);
+
+    expect(fn () => (new InfisicalClient(InfisicalConnection::factory()->create()))
+        ->fetchSecrets('nope', 'production', '/'))
+        ->toThrow(InfisicalApiException::class);
+});
+
+it('treats an unrecognised 404 as a real failure rather than assuming empty', function () {
+    Http::fake([
+        '*/api/v1/auth/universal-auth/login' => Http::response(['accessToken' => 'tok']),
+        '*/api/v3/secrets/raw*' => Http::response(['message' => 'something else entirely'], 404),
+    ]);
+
+    expect(fn () => (new InfisicalClient(InfisicalConnection::factory()->create()))
+        ->fetchSecrets('proj', 'production', '/'))
+        ->toThrow(InfisicalApiException::class);
+});
