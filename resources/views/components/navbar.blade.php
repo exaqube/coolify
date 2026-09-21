@@ -154,7 +154,11 @@
                         class="{{ request()->routeIs('security.infisical.*') ? 'menu-item-active menu-item' : 'menu-item' }}"
                         :class="collapsed && 'lg:justify-center lg:px-0'"
                         href="{{ route('security.infisical.index') }}">
-                        <x-reicon name="shield-star" class="menu-item-icon" />
+                        {{-- The brand mark ships as a PNG with a solid background, so it
+                             cannot be used as a CSS mask the way the monochrome brand
+                             icons are - it renders as an image and keeps its own colour. --}}
+                        <img src="{{ asset('svgs/infisical.png') }}" alt=""
+                            class="menu-item-icon rounded-[3px] object-contain" />
                         <span class="menu-item-label" :class="collapsed && 'lg:hidden'">Infisical</span>
                     </a>
                 </li>

@@ -29,6 +29,7 @@
             'route' => 'security.infisical.index',
             'active' => request()->routeIs('security.infisical.*'),
             'icon' => 'shield-star',
+            'image' => 'svgs/infisical.png',
         ] : null,
         [
             'label' => 'API Tokens',
@@ -53,7 +54,12 @@
                     <a wire:key="security-settings-{{ str($menuItem['label'])->slug() }}"
                         @class(['menu-item', 'menu-item-active' => $menuItem['active']])
                         {{ wireNavigate() }} href="{{ route($menuItem['route']) }}">
-                        <x-reicon :name="$menuItem['icon']" class="menu-item-icon" />
+                        @if (isset($menuItem['image']))
+                            <img src="{{ asset($menuItem['image']) }}" alt=""
+                                class="menu-item-icon rounded-[3px] object-contain" />
+                        @else
+                            <x-reicon :name="$menuItem['icon']" class="menu-item-icon" />
+                        @endif
                         <span class="menu-item-label">{{ $menuItem['label'] }}</span>
                     </a>
                 @endforeach
