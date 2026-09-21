@@ -1741,6 +1741,7 @@ All notable changes to this project will be documented in this file.
 - Native Infisical secret management, Microsoft Teams notifications, and fork CI/CD (#1)
 - *(infisical)* Make the scheduled sync reconcile instead of only pulling
 - *(infisical)* Show the resource variable screen as locked, and tear down stale environments
+- *(infisical)* Use the Infisical brand mark in the navigation
 
 ### 🐛 Bug Fixes
 
@@ -7551,6 +7552,7 @@ All notable changes to this project will be documented in this file.
 - *(infisical)* Mark the instance-wide design as not implemented
 - Clarify restart type
 - Clarify restart cause (#11774)
+- Update changelog
 - Update changelog
 - Update changelog
 - Update changelog
