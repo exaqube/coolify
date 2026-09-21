@@ -6134,6 +6134,7 @@ All notable changes to this project will be documented in this file.
 - *(webhooks)* Reject incomplete Stripe configuration
 - *(webhooks)* Reject incomplete Stripe configuration (#11915)
 - *(infisical)* Treat a missing folder or environment as empty, not an error
+- *(infisical)* Never let environment teardown block a sync
 
 ### 💼 Other
 
@@ -7550,6 +7551,7 @@ All notable changes to this project will be documented in this file.
 - *(infisical)* Mark the instance-wide design as not implemented
 - Clarify restart type
 - Clarify restart cause (#11774)
+- Update changelog
 - Update changelog
 - Update changelog
 
