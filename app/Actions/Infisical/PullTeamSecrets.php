@@ -30,7 +30,7 @@ class PullTeamSecrets
      */
     public function handle(InfisicalConnection $connection): array
     {
-        $result = $this->pull($connection, null);
+        $result = $this->pull($connection, null, reconcile: true);
 
         // Only a full walk may claim the connection is synced. A deploy-scoped
         // pull reads three folders out of a hundred; stamping last_synced_at
@@ -102,7 +102,7 @@ class PullTeamSecrets
      *
      * @throws InfisicalApiException
      */
-    private function pull(InfisicalConnection $connection, ?array $only): array
+    private function pull(InfisicalConnection $connection, ?array $only, bool $reconcile = false): array
     {
         $client = $connection->client();
         $projectId = $connection->infisical_project_id;
@@ -111,13 +111,39 @@ class PullTeamSecrets
 
         $created = 0;
         $updated = 0;
+        $pushed = 0;
         $hidden = [];
         $skipped = [];
+        $unreachable = [];
+
+        $tornDown = [];
+
+        if ($reconcile) {
+            $unreachable = $this->ensureEnvironments($client, $projectId, $buckets);
+            $tornDown = $this->tearDownStaleEnvironments($client, $projectId, $buckets);
+        }
 
         foreach ($buckets as $bucket) {
+            // An environment Infisical refused to create has nothing to read
+            // from and nowhere to write to.
+            if (in_array($bucket['environment'], $unreachable, true)) {
+                continue;
+            }
+
+            if ($reconcile) {
+                // A project, resource or environment created in Coolify after
+                // adoption has no folder yet. Without this, only adoption ever
+                // created them and anything added later never synced.
+                $client->ensureFolderPath($projectId, $bucket['environment'], $bucket['path']);
+            }
+
             $fetched = $client->fetchSecrets($projectId, $bucket['environment'], $bucket['path']);
 
             $hidden = array_merge($hidden, $fetched->hiddenKeys);
+
+            if ($reconcile) {
+                $pushed += $this->pushMissing($client, $projectId, $bucket, $fetched);
+            }
 
             if ($fetched->values === []) {
                 continue;
@@ -181,9 +207,131 @@ class PullTeamSecrets
         return [
             'created' => $created,
             'updated' => $updated,
+            'pushed' => $pushed,
             'hidden' => array_values(array_unique($hidden)),
             'skipped' => array_values(array_unique($skipped)),
+            'unreachableEnvironments' => $unreachable,
+            'tornDownEnvironments' => $tornDown,
         ];
+    }
+
+    /**
+     * Create any Infisical environment a Coolify environment maps to but that
+     * does not exist yet.
+     *
+     * Adoption used to be the only thing that created environments, and it
+     * runs once. A Coolify environment added afterwards therefore had nowhere
+     * to sync to until somebody pressed "Sync now".
+     *
+     * @param  array<string, array<string, mixed>>  $buckets
+     * @return array<int, string> environment slugs that could not be created
+     *
+     * @throws InfisicalApiException
+     */
+    private function ensureEnvironments($client, string $projectId, array $buckets): array
+    {
+        $needed = collect($buckets)->pluck('environment')->unique()->values();
+
+        if ($needed->isEmpty()) {
+            return [];
+        }
+
+        $existing = $client->listEnvironmentSlugs($projectId);
+        $unreachable = [];
+
+        foreach ($needed as $slug) {
+            if (in_array($slug, $existing, true)) {
+                continue;
+            }
+
+            if (! $client->createEnvironment($projectId, $slug, $slug)) {
+                $unreachable[] = $slug;
+            }
+        }
+
+        return $unreachable;
+    }
+
+    /**
+     * Delete Infisical environments that no Coolify environment maps to.
+     *
+     * ONLY removes an environment that is completely empty - no secrets and
+     * no folders, checked recursively. Everything else in this integration is
+     * additive precisely so a bug cannot destroy secrets, and environment
+     * deletion is the one genuinely destructive operation, so it is fenced.
+     *
+     * The fence matters because slug matching has failed before: Infisical
+     * seeds dev/staging/prod while Coolify derives slugs from its own
+     * environment names, and the API returns only what the identity can see,
+     * so a permissions blip looks identical to "this is stale". An emptiness
+     * check means the worst case is a no-op rather than data loss.
+     *
+     * @param  array<string, array<string, mixed>>  $buckets
+     * @return array<int, string> slugs actually deleted
+     *
+     * @throws InfisicalApiException
+     */
+    private function tearDownStaleEnvironments($client, string $projectId, array $buckets): array
+    {
+        $wanted = collect($buckets)->pluck('environment')->unique()->all();
+
+        // Nothing to compare against: never interpret an empty walk as
+        // "delete everything".
+        if ($wanted === []) {
+            return [];
+        }
+
+        $deleted = [];
+
+        foreach ($client->listEnvironments($projectId) as $slug => $environmentId) {
+            if (in_array($slug, $wanted, true)) {
+                continue;
+            }
+
+            if (! $client->environmentIsEmpty($projectId, $slug)) {
+                continue;
+            }
+
+            $client->deleteEnvironment($projectId, $environmentId);
+            $deleted[] = $slug;
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * Push only the keys Coolify holds that Infisical does not.
+     *
+     * Deliberately NOT an upsert of everything. Infisical is the source of
+     * truth once adopted, so re-pushing a key that already exists there would
+     * overwrite an edit made in Infisical with Coolify's older copy - silent
+     * data loss on every scheduled run.
+     *
+     * Verified against a live instance: mode=ignore does NOT give
+     * create-if-absent semantics on the self-hosted API (it updates existing
+     * keys and skips new ones), so the missing set has to be computed here
+     * from the read we already performed.
+     *
+     * @param  array<string, mixed>  $bucket
+     *
+     * @throws InfisicalApiException
+     */
+    private function pushMissing($client, string $projectId, array $bucket, $fetched): int
+    {
+        $missing = array_diff_key($bucket['secrets'], $fetched->values);
+
+        // A key Infisical hid from us exists there; pushing would clobber it.
+        foreach ($fetched->hiddenKeys as $hiddenKey) {
+            unset($missing[$hiddenKey]);
+        }
+
+        if ($missing === []) {
+            return 0;
+        }
+
+        $client->upsertSecrets($projectId, $bucket['environment'], $bucket['path'], $missing);
+
+        return count($missing);
     }
 
     /**
@@ -204,6 +352,11 @@ class PullTeamSecrets
         if ($result['skipped'] !== []) {
             $messages[] = 'Secret(s) only present in Infisical at team or project scope, which has no unambiguous Coolify destination: '
                 .implode(', ', $result['skipped']);
+        }
+
+        if (($result['unreachableEnvironments'] ?? []) !== []) {
+            $messages[] = 'Could not create Infisical environment(s), so they did not sync - the machine identity needs environments:create: '
+                .implode(', ', $result['unreachableEnvironments']);
         }
 
         return $messages === [] ? null : implode(' ', $messages);

@@ -48,9 +48,45 @@
             @else
                 <p class="text-sm text-neutral-500 dark:text-fg-dim">Manage this resource's environment variables below.</p>
             @endif
+
+            @if ($isInfisicalLocked)
+                <x-callout type="warning" title="Managed by Infisical" class="mt-3">
+                    <p>
+                        These variables are read-only here. Edit them in Infisical and Coolify will
+                        pick the change up on the next sync.
+                    </p>
+                    @if ($infisicalUrl)
+                        <p class="mt-2">
+                            <a href="{{ $infisicalUrl }}" target="_blank" rel="noopener noreferrer"
+                                class="underline">Open this environment in Infisical</a>
+                        </p>
+                    @endif
+                </x-callout>
+            @endif
         @else
             <form wire:submit.prevent='submit' class="flex w-full flex-col gap-4">
-                @can('manageEnvironment', $resource)
+                {{-- The lock is enforced in handleBulkSubmit(); this only stops
+                     the screen inviting edits it will refuse to save. --}}
+                @if ($isInfisicalLocked)
+                    <x-callout type="warning" title="Managed by Infisical">
+                        <p>
+                            These variables are read-only here. Edit them in Infisical and Coolify
+                            will pick the change up on the next sync.
+                        </p>
+                        @if ($infisicalUrl)
+                            <p class="mt-2">
+                                <a href="{{ $infisicalUrl }}" target="_blank" rel="noopener noreferrer"
+                                    class="underline">Open this environment in Infisical</a>
+                            </p>
+                        @endif
+                    </x-callout>
+                    <x-forms.textarea rows="10" class="whitespace-pre-wrap font-sans" id="variables"
+                        wire:model="variables" label="Production" disabled></x-forms.textarea>
+                    @if ($showPreview)
+                        <x-forms.textarea rows="10" class="whitespace-pre-wrap font-sans" label="Preview deployments"
+                            id="variablesPreview" wire:model="variablesPreview" disabled></x-forms.textarea>
+                    @endif
+                @elseif (auth()->user()?->can('manageEnvironment', $resource))
                     <x-callout type="info" title="Note">
                         Inline comments with space before # (e.g., <code class="font-mono">KEY=value #comment</code>) are stripped.
                     </x-callout>
@@ -68,7 +104,7 @@
                         <x-forms.textarea rows="10" class="whitespace-pre-wrap font-sans" label="Preview deployments"
                             id="variablesPreview" wire:model="variablesPreview" disabled></x-forms.textarea>
                     @endif
-                @endcan
+                @endif
             </form>
         @endif
     </x-application.settings-section>
@@ -160,7 +196,7 @@
                             </button>
                         @endforeach
             </x-table.sort>
-                @can('manageEnvironment', $resource)
+                @if (! $isInfisicalLocked && auth()->user()?->can('manageEnvironment', $resource))
                     {{-- Do not disable Add based on readyToLoad: modal-input uses wire:ignore, so a
                          disabled attribute painted on first load would never re-enable. --}}
                     <x-modal-input title="New Environment Variable" :closeOutside="false">
@@ -173,7 +209,7 @@
                         </x-slot:content>
                         <livewire:project.shared.environment-variable.add :resource="$resource" />
                     </x-modal-input>
-                @endcan
+                @endif
         </x-table.toolbar>
     @endif
 

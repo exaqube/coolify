@@ -71,6 +71,73 @@ class InfisicalClient
     }
 
     /**
+     * Every environment of a project as slug => id.
+     *
+     * listEnvironmentSlugs() is kept for callers that only need the slugs;
+     * teardown needs the ids, which is what the delete endpoint takes.
+     *
+     * @return array<string, string>
+     *
+     * @throws InfisicalApiException
+     */
+    public function listEnvironments(string $projectId): array
+    {
+        $response = $this->send('get', "/api/v1/workspace/{$projectId}", [], 'list environments');
+
+        $map = [];
+        foreach ($response->json('workspace.environments', []) as $environment) {
+            $slug = data_get($environment, 'slug');
+            $id = data_get($environment, 'id');
+
+            if ($slug !== null && $id !== null) {
+                $map[$slug] = $id;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * True when an environment holds no secrets and no folders anywhere.
+     *
+     * Teardown refuses to delete anything that is not empty, so this is the
+     * safety check that stands between a slug-matching mistake and destroying
+     * real secrets. It reads recursively rather than just the root.
+     *
+     * @throws InfisicalApiException
+     */
+    public function environmentIsEmpty(string $projectId, string $environmentSlug): bool
+    {
+        $secrets = $this->send('get', '/api/v3/secrets/raw', [
+            'workspaceId' => $projectId,
+            'environment' => $environmentSlug,
+            'secretPath' => '/',
+            'recursive' => 'true',
+        ], 'check environment contents');
+
+        if ($secrets->json('secrets', []) !== []) {
+            return false;
+        }
+
+        return $this->listFolderNames($projectId, $environmentSlug, '/') === [];
+    }
+
+    /**
+     * @throws InfisicalApiException
+     */
+    public function deleteEnvironment(string $projectId, string $environmentId): void
+    {
+        $response = $this->raw('delete', "/api/v1/workspace/{$projectId}/environments/{$environmentId}", []);
+
+        // Already gone is a success for our purposes.
+        if ($response->status() === 404) {
+            return;
+        }
+
+        $this->throwUnlessSuccessful($response, 'delete environment');
+    }
+
+    /**
      * Returns false when Infisical refuses — insufficient project role, or the
      * organisation's environment limit. Callers degrade to skip-and-warn
      * rather than failing the whole sync.
