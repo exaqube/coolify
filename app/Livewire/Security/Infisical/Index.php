@@ -103,7 +103,7 @@ class Index extends Component
             $pulled = PullTeamSecrets::run($connection);
 
             $parts = [
-                $pushed['pushed'].' pushed up',
+                ($pushed['pushed'] + ($pulled['pushed'] ?? 0)).' pushed up',
                 $pulled['created'].' created here',
                 $pulled['updated'].' updated here',
             ];
