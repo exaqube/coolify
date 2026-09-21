@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Actions\Infisical\PushGeneratedSecret;
+use App\Exceptions\InfisicalManagedVariableException;
 use App\Models\EnvironmentVariable as ModelsEnvironmentVariable;
+use App\Services\Infisical\InfisicalLock;
 use App\Support\ValidationPatterns;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use OpenApi\Attributes as OA;
 
 #[OA\Schema(
@@ -36,6 +40,7 @@ use OpenApi\Attributes as OA;
 class EnvironmentVariable extends BaseModel
 {
     use Auditable;
+    use HasFactory;
 
     public const BUILDPACK_CONTROL_VARIABLE_PREFIXES = ['NIXPACKS_', 'RAILPACK_'];
 
@@ -67,6 +72,10 @@ class EnvironmentVariable extends BaseModel
         // Metadata
         'version',
         'order',
+
+        // Provenance
+        'is_infisical_managed',
+        'infisical_path',
     ];
 
     protected $casts = [
@@ -79,6 +88,7 @@ class EnvironmentVariable extends BaseModel
         'version' => 'string',
         'resourceable_type' => 'string',
         'resourceable_id' => 'integer',
+        'is_infisical_managed' => 'boolean',
     ];
 
     protected $appends = ['real_value', 'is_shared', 'is_really_required', 'is_buildpack_control', 'is_coolify'];
@@ -96,39 +106,110 @@ class EnvironmentVariable extends BaseModel
     protected static function booted()
     {
         static::created(function (ModelsEnvironmentVariable $environment_variable) {
-            if ($environment_variable->resourceable_type === Application::class && ! $environment_variable->is_preview) {
-                $found = ModelsEnvironmentVariable::where('key', $environment_variable->key)
-                    ->where('resourceable_type', Application::class)
-                    ->where('resourceable_id', $environment_variable->resourceable_id)
-                    ->where('is_preview', true)
-                    ->first();
+            // The preview clone and the version stamp are writes the caller never
+            // made — they are Coolify's own, so they run as system writes.
+            InfisicalLock::asSystem(function () use ($environment_variable) {
+                if ($environment_variable->resourceable_type === Application::class && ! $environment_variable->is_preview) {
+                    $found = ModelsEnvironmentVariable::where('key', $environment_variable->key)
+                        ->where('resourceable_type', Application::class)
+                        ->where('resourceable_id', $environment_variable->resourceable_id)
+                        ->where('is_preview', true)
+                        ->first();
 
-                if (! $found) {
-                    $application = Application::find($environment_variable->resourceable_id);
-                    if ($application) {
-                        ModelsEnvironmentVariable::create([
-                            'key' => $environment_variable->key,
-                            'value' => $environment_variable->value,
-                            'is_multiline' => $environment_variable->is_multiline ?? false,
-                            'is_literal' => $environment_variable->is_literal ?? false,
-                            'is_runtime' => $environment_variable->is_runtime ?? false,
-                            'is_buildtime' => $environment_variable->is_buildtime ?? false,
-                            'comment' => $environment_variable->comment,
-                            'resourceable_type' => Application::class,
-                            'resourceable_id' => $environment_variable->resourceable_id,
-                            'is_preview' => true,
-                        ]);
+                    if (! $found) {
+                        $application = Application::find($environment_variable->resourceable_id);
+                        if ($application) {
+                            ModelsEnvironmentVariable::create([
+                                'key' => $environment_variable->key,
+                                'value' => $environment_variable->value,
+                                'is_multiline' => $environment_variable->is_multiline ?? false,
+                                'is_literal' => $environment_variable->is_literal ?? false,
+                                'is_runtime' => $environment_variable->is_runtime ?? false,
+                                'is_buildtime' => $environment_variable->is_buildtime ?? false,
+                                'comment' => $environment_variable->comment,
+                                'resourceable_type' => Application::class,
+                                'resourceable_id' => $environment_variable->resourceable_id,
+                                'is_preview' => true,
+                            ]);
+                        }
                     }
                 }
-            }
-            $environment_variable->update([
-                'version' => config('constants.coolify.version'),
-            ]);
+                $environment_variable->update([
+                    'version' => config('constants.coolify.version'),
+                ]);
+            });
         });
 
         static::saving(function (ModelsEnvironmentVariable $environmentVariable) {
             $environmentVariable->updateIsShared();
         });
+
+        static::saving(function (self $variable): void {
+            self::guardInfisicalLock($variable);
+        });
+
+        static::deleting(function (self $variable): void {
+            self::guardInfisicalLock($variable);
+        });
+
+        // Only Coolify's OWN generated writes go up. A human write never
+        // reaches here (the saving guard rejected it), and a pull write must
+        // not be echoed back up — without that second condition the two sync
+        // directions feed each other forever.
+        //
+        // The key/value test is not an optimisation. parse() uses
+        // firstOrCreate, so a repeat parse() must not produce a repeat push;
+        // and the push job stamps is_infisical_managed / infisical_path back
+        // onto the rows it pushed, which is itself a system write that would
+        // otherwise re-enter here forever.
+        static::saved(function (self $row): void {
+            if (! InfisicalLock::isSystemWrite() || InfisicalLock::isInfisicalPull()) {
+                return;
+            }
+
+            if (! $row->wasRecentlyCreated && ! $row->wasChanged('key') && ! $row->wasChanged('value')) {
+                return;
+            }
+
+            PushGeneratedSecret::run($row);
+        });
+    }
+
+    private static function guardInfisicalLock(self $variable): void
+    {
+        if (InfisicalLock::isSystemWrite()) {
+            return;
+        }
+
+        if (! InfisicalLock::anyConnectionEnabled()) {
+            return;
+        }
+
+        // Resolving the owner is a READ, but some owners write during a read:
+        // StandaloneRedis::retrieved() touches redis_username, whose accessor
+        // creates a REDIS_USERNAME row when one is missing. Left unguarded that
+        // nested create re-enters this method, reloads the owner, and recurses
+        // until the stack blows. Any write incurred while resolving the owner
+        // is Coolify's own, so resolve inside asSystem().
+        $teamId = InfisicalLock::asSystem(function () use ($variable) {
+            $resource = $variable->resourceable;
+
+            if ($resource === null) {
+                return null;
+            }
+
+            // Application, Service and all eight Standalone* models expose
+            // environment(). ServiceApplication does NOT, so without the team()
+            // fallback the lock would fail silently OPEN for that type.
+            return $resource->environment?->project?->team_id
+                ?? $resource->team()?->id;
+        });
+
+        if (! InfisicalLock::armedForTeam($teamId)) {
+            return;
+        }
+
+        throw InfisicalManagedVariableException::forKey($variable->key);
     }
 
     public function service()

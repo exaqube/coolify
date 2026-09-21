@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\LocksInfisicalManagedCredentials;
+use App\Services\Infisical\InfisicalLock;
 use App\Traits\Auditable;
 use App\Traits\ClearsGlobalSearchCache;
 use App\Traits\HasDatabaseHealthCheck;
@@ -14,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StandaloneMongodb extends BaseModel
 {
-    use Auditable, ClearsGlobalSearchCache, HasDatabaseHealthCheck, HasFactory, HasMetrics, HasSafeStringAttribute, HasSecretManager, SoftDeletes;
+    use Auditable, ClearsGlobalSearchCache, HasDatabaseHealthCheck, HasFactory, HasMetrics, HasSafeStringAttribute, HasSecretManager, LocksInfisicalManagedCredentials, SoftDeletes;
 
     protected $fillable = [
         'uuid',
@@ -288,8 +290,12 @@ class StandaloneMongodb extends BaseModel
                 try {
                     return decrypt($value);
                 } catch (\Throwable $th) {
-                    $this->mongo_initdb_root_password = encrypt($value);
-                    $this->save();
+                    // Self-healing a plaintext value SAVES during a READ, so
+                    // rendering a page must not trip the managed-variable lock.
+                    InfisicalLock::asSystem(function () use ($value) {
+                        $this->mongo_initdb_root_password = encrypt($value);
+                        $this->save();
+                    });
 
                     return $value;
                 }
@@ -370,6 +376,25 @@ class StandaloneMongodb extends BaseModel
                 return null;
             }
         );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function infisicalManagedColumns(): array
+    {
+        return ['mongo_initdb_root_password'];
+    }
+
+    /**
+     * `mongo_initdb_root_password` is a get-only Attribute with no cast and no
+     * setter, so a plaintext assignment would be stored in the clear.
+     *
+     * @return array<int, string>
+     */
+    public function infisicalColumnsRequiringExplicitEncryption(): array
+    {
+        return ['mongo_initdb_root_password'];
     }
 
     public function environment()

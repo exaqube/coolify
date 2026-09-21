@@ -2,9 +2,13 @@
 
 namespace App\Livewire\SharedVariables\Environment;
 
+use App\Exceptions\InfisicalManagedVariableException;
 use App\Models\Application;
 use App\Models\Project;
+use App\Models\SharedEnvironmentVariable;
+use App\Services\Infisical\InfisicalLock;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
@@ -71,7 +75,31 @@ class Show extends Component
 
     public function getDevView()
     {
-        $this->variables = $this->formatEnvironmentVariables($this->environment->environment_variables->sortBy('key'));
+        $this->variables = $this->formatEnvironmentVariables($this->editableVariables->sortBy('key'));
+    }
+
+    /**
+     * User-owned rows: the only ones this screen may edit or delete.
+     *
+     * Rows flagged is_infisical_managed are owned by Infisical and are refreshed
+     * by the next sync, so they are excluded from both
+     * the normal-view table and the developer-view textarea.
+     *
+     * @return Collection<int, SharedEnvironmentVariable>
+     */
+    public function getEditableVariablesProperty(): Collection
+    {
+        return $this->environment->environment_variables->where('is_infisical_managed', false)->values();
+    }
+
+    /**
+     * Infisical-owned rows for this environment, rendered read-only with a badge.
+     *
+     * @return Collection<int, SharedEnvironmentVariable>
+     */
+    public function getInheritedVariablesProperty(): Collection
+    {
+        return $this->environment->environment_variables->where('is_infisical_managed', true)->sortBy('key')->values();
     }
 
     private function formatEnvironmentVariables($variables)
@@ -108,6 +136,14 @@ class Show extends Component
 
     private function handleBulkSubmit()
     {
+        // The deletes below go through the relation query builder, which fires
+        // no model events, so the deleting hook on the model never sees them. Without
+        // this check a locked team's variables can still be removed by deleting
+        // lines from the textarea and submitting.
+        if (InfisicalLock::armedForTeam(currentTeam()?->id)) {
+            throw InfisicalManagedVariableException::forBulkEdit();
+        }
+
         $variables = parseEnvFormatToArray($this->variables);
         $changesMade = false;
 
@@ -131,15 +167,28 @@ class Show extends Component
         }
     }
 
+    /**
+     * Delete user-owned rows the admin dropped from the bulk textarea.
+     *
+     * Infisical-owned rows are never in the textarea, so they must never be
+     * reachable here: the is_infisical_managed guard is the control that keeps a
+     * missing key from hard-deleting a secret a running deployment depends on.
+     */
     private function deleteRemovedVariables($variables)
     {
-        $variablesToDelete = $this->environment->environment_variables()->whereNotIn('key', array_keys($variables))->get();
+        $variablesToDelete = $this->environment->environment_variables()
+            ->where('is_infisical_managed', false)
+            ->whereNotIn('key', array_keys($variables))
+            ->get();
 
         if ($variablesToDelete->isEmpty()) {
             return 0;
         }
 
-        $this->environment->environment_variables()->whereNotIn('key', array_keys($variables))->delete();
+        $this->environment->environment_variables()
+            ->where('is_infisical_managed', false)
+            ->whereNotIn('key', array_keys($variables))
+            ->delete();
 
         return $variablesToDelete->count();
     }
@@ -150,7 +199,16 @@ class Show extends Component
         foreach ($variables as $key => $data) {
             $value = is_array($data) ? ($data['value'] ?? '') : $data;
 
-            $found = $this->environment->environment_variables()->where('key', $key)->first();
+            $found = $this->environment->environment_variables()
+                ->where('is_infisical_managed', false)
+                ->where('key', $key)
+                ->first();
+
+            if ($found === null && $this->environment->environment_variables()->where('is_infisical_managed', true)->where('key', $key)->exists()) {
+                // An Infisical-owned row already holds this key. Never shadow it
+                // with a second row from the textarea.
+                continue;
+            }
 
             if ($found) {
                 if (! $found->is_shown_once && ! $found->is_multiline) {

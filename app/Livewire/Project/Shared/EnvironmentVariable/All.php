@@ -2,8 +2,12 @@
 
 namespace App\Livewire\Project\Shared\EnvironmentVariable;
 
+use App\Actions\Infisical\ResolveInheritedSecrets;
+use App\Exceptions\InfisicalManagedVariableException;
 use App\Models\Application;
 use App\Models\EnvironmentVariable;
+use App\Models\Service;
+use App\Services\Infisical\InfisicalLock;
 use App\Support\ValidationPatterns;
 use App\Traits\EnvironmentVariableProtection;
 use Illuminate\Database\Eloquent\Builder;
@@ -231,6 +235,43 @@ class All extends Component
     public function getIsSearchActiveProperty(): bool
     {
         return $this->searchTerm() !== '';
+    }
+
+    /**
+     * Infisical-owned variables inherited by this resource's environment,
+     * keyed by variable name. Rendered read-only with a badge; never
+     * editable or deletable from this list, since they are managed by the
+     * next Infisical sync rather than by this resource.
+     *
+     * Only applications and services receive inherited secrets at deploy time.
+     * Standalone databases carry an environment_id too, so the resolver would
+     * happily return rows for them -- but Start* never injects them, and
+     * databases are an explicit spec non-goal. Gate here so the UI never
+     * claims an inheritance the deployment path does not perform.
+     *
+     * @return Collection<string, string>
+     */
+    public function getInheritedSecretsProperty(): Collection
+    {
+        if (! $this->readyToLoad) {
+            return collect();
+        }
+
+        if (! $this->resourceReceivesInheritedSecrets()) {
+            return collect();
+        }
+
+        return ResolveInheritedSecrets::run($this->resource);
+    }
+
+    /**
+     * Whether this resource type actually receives injected Infisical secrets
+     * at deploy time. Mirrors the only two call sites of ResolveInheritedSecrets
+     * in the deployment path: ApplicationDeploymentJob and Service.
+     */
+    private function resourceReceivesInheritedSecrets(): bool
+    {
+        return $this->resource instanceof Application || $this->resource instanceof Service;
     }
 
     public function getHardcodedEnvironmentVariablesProperty()
@@ -902,6 +943,14 @@ class All extends Component
 
     private function handleBulkSubmit()
     {
+        // The deletes below go through the relation query builder, which fires
+        // no model events, so the deleting hook on the model never sees them. Without
+        // this check a locked team's variables can still be removed by deleting
+        // lines from the textarea and submitting.
+        if (InfisicalLock::armedForTeam(currentTeam()?->id)) {
+            throw InfisicalManagedVariableException::forBulkEdit();
+        }
+
         $variables = $this->normalizeEnvironmentVariables(parseEnvFormatToArray($this->variables));
         $changesMade = false;
         $errorOccurred = false;

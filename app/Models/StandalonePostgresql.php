@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\LocksInfisicalManagedCredentials;
 use App\Traits\Auditable;
 use App\Traits\ClearsGlobalSearchCache;
 use App\Traits\HasDatabaseHealthCheck;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StandalonePostgresql extends BaseModel
 {
-    use Auditable, ClearsGlobalSearchCache, HasDatabaseHealthCheck, HasFactory, HasMetrics, HasSafeStringAttribute, HasSecretManager, SoftDeletes;
+    use Auditable, ClearsGlobalSearchCache, HasDatabaseHealthCheck, HasFactory, HasMetrics, HasSafeStringAttribute, HasSecretManager, LocksInfisicalManagedCredentials, SoftDeletes;
 
     protected $fillable = [
         'uuid',
@@ -362,6 +363,14 @@ class StandalonePostgresql extends BaseModel
                 return null;
             }
         );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function infisicalManagedColumns(): array
+    {
+        return ['postgres_password'];
     }
 
     public function environment()

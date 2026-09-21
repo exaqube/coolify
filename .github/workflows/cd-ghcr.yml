@@ -1,0 +1,161 @@
+# Fork CD: build the production image and publish it to this repository's
+# GitHub Container Registry.
+#
+# Deliberately GHCR-only. The upstream workflows (coolify-sha-build.yml and
+# friends) also push to Docker Hub under coollabsio/coolify and require
+# DOCKERHUB_USERNAME / DOCKERHUB_TOKEN, which a fork does not have - they fail
+# here rather than publishing anything.
+#
+# The image name is derived from ${{ github.repository }}, so this works in any
+# fork without editing: exaqube/coolify publishes ghcr.io/exaqube/coolify.
+name: CD - Build and publish to GHCR
+
+on:
+  push:
+    branches:
+      - main
+      - "feat/**"
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Extra tag to publish alongside the commit SHA (e.g. staging)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  # One build per ref. A newer push cancels an in-flight build of the same
+  # branch, but never cancels a tag build.
+  group: cd-ghcr-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            platform: linux/aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Resolve image name and version
+        id: meta
+        run: |
+          # GHCR requires a lowercase path; repository owners may not be.
+          IMAGE="${REGISTRY}/$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          BASE_VERSION=$(docker run --rm -v "$(pwd):/app" -w /app php:8.2-alpine3.16 php bootstrap/getVersion.php)
+
+          {
+            echo "image=${IMAGE}"
+            echo "short_sha=${GITHUB_SHA::7}"
+            echo "version=${BASE_VERSION}-dev.${GITHUB_SHA::9}"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (${{ matrix.arch }})
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/production/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: true
+          provenance: false
+          build-args: |
+            COOLIFY_VERSION=${{ steps.meta.outputs.version }}
+          # Per-arch tags only. The manifest job below stitches them into the
+          # single multi-arch tags consumers actually pull.
+          tags: ${{ steps.meta.outputs.image }}:sha-${{ steps.meta.outputs.short_sha }}-${{ matrix.arch }}
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+
+  manifest:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and publish the multi-arch manifest
+        env:
+          IMAGE: ${{ needs.build.outputs.image }}
+          SHA: ${{ needs.build.outputs.short_sha }}
+          EXTRA_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          TAGS=("sha-${SHA}")
+
+          # Branch and tag refs each get a readable alias alongside the SHA.
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAGS+=("${GITHUB_REF_NAME}" "latest")
+          elif [ "${GITHUB_REF_NAME}" = "main" ]; then
+            TAGS+=("main")
+          else
+            # feat/foo-bar -> feat-foo-bar, since a tag cannot contain "/".
+            TAGS+=("$(echo "${GITHUB_REF_NAME}" | tr '/' '-')")
+          fi
+
+          if [ -n "${EXTRA_TAG:-}" ]; then
+            TAGS+=("${EXTRA_TAG}")
+          fi
+
+          ARGS=()
+          for tag in "${TAGS[@]}"; do
+            ARGS+=(--tag "${IMAGE}:${tag}")
+          done
+
+          docker buildx imagetools create \
+            "${ARGS[@]}" \
+            "${IMAGE}:sha-${SHA}-amd64" \
+            "${IMAGE}:sha-${SHA}-aarch64"
+
+          echo "Published:"
+          printf '  %s:%s\n' "${IMAGE}" "${TAGS[@]}"
+
+      - name: Summary
+        env:
+          IMAGE: ${{ needs.build.outputs.image }}
+          SHA: ${{ needs.build.outputs.short_sha }}
+        run: |
+          {
+            echo "### Image published"
+            echo
+            echo '```'
+            echo "docker pull ${IMAGE}:sha-${SHA}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

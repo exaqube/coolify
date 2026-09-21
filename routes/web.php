@@ -16,6 +16,7 @@ use App\Livewire\Dev\LivewireRequestFailurePreview;
 use App\Livewire\ForcePasswordReset;
 use App\Livewire\Notifications\Discord as NotificationDiscord;
 use App\Livewire\Notifications\Email as NotificationEmail;
+use App\Livewire\Notifications\MicrosoftTeams as NotificationMicrosoftTeams;
 use App\Livewire\Notifications\Pushover as NotificationPushover;
 use App\Livewire\Notifications\Slack as NotificationSlack;
 use App\Livewire\Notifications\Telegram as NotificationTelegram;
@@ -50,6 +51,7 @@ use App\Livewire\Security\CloudInitScript\Show as SecurityCloudInitScriptShow;
 use App\Livewire\Security\CloudInitScripts;
 use App\Livewire\Security\CloudProviderToken\Show as SecurityCloudProviderTokenShow;
 use App\Livewire\Security\CloudTokens;
+use App\Livewire\Security\Infisical\Index as SecurityInfisicalIndex;
 use App\Livewire\Security\IntegrationTokens;
 use App\Livewire\Security\PrivateKey\Index as SecurityPrivateKeyIndex;
 use App\Livewire\Security\PrivateKey\Show as SecurityPrivateKeyShow;
@@ -189,6 +191,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/telegram', NotificationTelegram::class)->name('notifications.telegram');
         Route::get('/discord', NotificationDiscord::class)->name('notifications.discord');
         Route::get('/slack', NotificationSlack::class)->name('notifications.slack');
+        Route::get('/microsoft-teams', NotificationMicrosoftTeams::class)->name('notifications.microsoft-teams');
         Route::get('/pushover', NotificationPushover::class)->name('notifications.pushover');
         Route::get('/webhook', NotificationWebhook::class)->name('notifications.webhook');
     });
@@ -405,6 +408,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/security/cloud-init-scripts', CloudInitScripts::class)->name('security.cloud-init-scripts');
     Route::get('/security/cloud-init-scripts/{cloud_init_script_uuid}', SecurityCloudInitScriptShow::class)->name('security.cloud-init-scripts.show');
     Route::get('/security/api-tokens', ApiTokens::class)->name('security.api-tokens');
+    Route::get('/security/infisical', SecurityInfisicalIndex::class)->name('security.infisical.index');
 });
 
 Route::middleware(['auth'])->group(function () {

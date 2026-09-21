@@ -3,6 +3,8 @@
 namespace App\Jobs;
 
 use App\Actions\Docker\GetContainersStatus;
+use App\Actions\Infisical\PullTeamSecrets;
+use App\Actions\Infisical\ResolveInheritedSecrets;
 use App\Enums\ApplicationDeploymentStatus;
 use App\Enums\ProcessStatus;
 use App\Events\ApplicationConfigurationChanged;
@@ -14,6 +16,7 @@ use App\Models\ApplicationPreview;
 use App\Models\EnvironmentVariable;
 use App\Models\GithubApp;
 use App\Models\GitlabApp;
+use App\Models\InfisicalConnection;
 use App\Models\Server;
 use App\Models\StandaloneDocker;
 use App\Models\SwarmDocker;
@@ -81,6 +84,9 @@ class ApplicationDeploymentJob implements ShouldBeEncrypted, ShouldQueue
     public static int $batch_counter = 0;
 
     private bool $newVersionIsHealthy = false;
+
+    /** @var Collection<string, string>|null */
+    private ?Collection $inheritedSecrets = null;
 
     private ApplicationDeploymentQueue $application_deployment_queue;
 
@@ -367,6 +373,7 @@ class ApplicationDeploymentJob implements ShouldBeEncrypted, ShouldQueue
 
             $this->selectBuildServer();
             $this->detectBuildKitCapabilities();
+            $this->pullInfisicalSecrets();
             $this->decide_what_to_do();
         } catch (Exception $e) {
             if ($this->pull_request_id !== 0 && $this->application->is_github_based()) {
@@ -1401,6 +1408,58 @@ class ApplicationDeploymentJob implements ShouldBeEncrypted, ShouldQueue
     }
 
     /**
+     * Pull this application's Infisical folders fresh before anything reads them.
+     *
+     * Scoped, NOT a whole-team walk: PullTeamSecrets::run() issues one HTTP
+     * round trip per bucket, and a realistic team has well over a hundred of
+     * them. A deployment only inherits '/', '/{project}/' and
+     * '/{project}/{resource}/' in its own environment slug, so only those are
+     * fetched.
+     *
+     * Called directly rather than queued or through remote_process(), and the
+     * exception is deliberately NOT caught: per the spec a connection failure
+     * during a deploy fails the deploy instead of silently shipping stale
+     * values.
+     */
+    private function pullInfisicalSecrets(): void
+    {
+        $teamId = $this->application->environment?->project?->team_id;
+
+        if ($teamId === null) {
+            return;
+        }
+
+        $connection = InfisicalConnection::query()
+            ->where('team_id', $teamId)
+            ->where('is_enabled', true)
+            ->whereNotNull('adopted_at')
+            ->first();
+
+        if ($connection === null) {
+            return;
+        }
+
+        PullTeamSecrets::forApplication($connection, $this->application);
+    }
+
+    /**
+     * Infisical-owned variables inherited from this deployment's environment, as key => value.
+     *
+     * Memoised: the runtime and build-time generators each ask for these, and every
+     * deployment pays for the lookup whether or not Infisical is configured.
+     *
+     * @return Collection<string, string>
+     */
+    private function inheritedSecrets(): Collection
+    {
+        if ($this->inheritedSecrets !== null) {
+            return $this->inheritedSecrets;
+        }
+
+        return $this->inheritedSecrets = ResolveInheritedSecrets::run($this->application);
+    }
+
+    /**
      * Fetch the secrets from the application's secret manager source. Values
      * live only in memory during the deployment and in the generated .env on
      * the server — they are never persisted in the Coolify database. Fetched
@@ -1511,6 +1570,13 @@ class ApplicationDeploymentJob implements ShouldBeEncrypted, ShouldQueue
             $sorted_environment_variables_preview = $sorted_environment_variables_preview->reject(fn (EnvironmentVariable $env) => $this->isGeneratedDockerComposeEnvironmentVariable($env));
         }
         $ports = $this->application->main_port();
+
+        // Inherited Infisical secrets are the lowest precedence: they are pushed before the
+        // Coolify-generated and resource-level variables below, both of which overwrite matching keys.
+        foreach ($this->inheritedSecrets() as $key => $value) {
+            $envs->push("{$key}=".escapeInheritedEnvValue($value));
+        }
+
         $coolify_envs = $this->generate_coolify_env_variables();
         $coolify_envs->each(function ($item, $key) use ($envs) {
             $envs->push($key.'='.$item);
@@ -1825,6 +1891,12 @@ class ApplicationDeploymentJob implements ShouldBeEncrypted, ShouldQueue
                     }
                 }
             }
+        }
+
+        // 1.5 Add inherited Infisical secrets. They sit below the Coolify/SERVICE generated
+        // variables and the user-defined variables below, both of which override them.
+        foreach ($this->inheritedSecrets() as $key => $value) {
+            $envs_dict[$key] = escapeBashEnvValue($value);
         }
 
         // 2. Add COOLIFY variables (can override nixpacks, but shouldn't happen in practice)
