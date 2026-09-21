@@ -6,8 +6,10 @@ use App\Actions\Infisical\ResolveInheritedSecrets;
 use App\Exceptions\InfisicalManagedVariableException;
 use App\Models\Application;
 use App\Models\EnvironmentVariable;
+use App\Models\InfisicalConnection;
 use App\Models\Service;
 use App\Services\Infisical\InfisicalLock;
+use App\Services\Infisical\InfisicalPath;
 use App\Support\ValidationPatterns;
 use App\Traits\EnvironmentVariableProtection;
 use Illuminate\Database\Eloquent\Builder;
@@ -66,6 +68,17 @@ class All extends Component
      */
     public bool $readyToLoad = false;
 
+    /**
+     * Whether Infisical owns this team's variables.
+     *
+     * handleBulkSubmit() already rejects a locked write server-side - that is
+     * the control. This exists so the screen does not invite a user to type a
+     * page of changes and only learn on save that none of it can be applied.
+     */
+    public bool $isInfisicalLocked = false;
+
+    public ?string $infisicalUrl = null;
+
     protected $listeners = [
         'saveKey' => 'submit',
         'refreshEnvs',
@@ -103,6 +116,16 @@ class All extends Component
         if (str($this->resourceClass)->contains($resourceWithPreviews) && $hasGitRepository && ! $simpleDockerfile) {
             $this->showPreview = true;
         }
+        $teamId = data_get($this->resource, 'environment.project.team_id');
+        $this->isInfisicalLocked = InfisicalLock::armedForTeam($teamId);
+
+        if ($this->isInfisicalLocked) {
+            $connection = InfisicalConnection::enabledForTeam($teamId);
+            $this->infisicalUrl = $connection?->secretsUrl(
+                InfisicalPath::environmentSlug((string) data_get($this->resource, 'environment.name', ''))
+            );
+        }
+
         // Intentionally skip loading env vars / developer-view bulk text here.
         // loadEnvironmentVariables() is triggered from the frontend via wire:init.
     }

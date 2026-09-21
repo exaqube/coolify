@@ -116,8 +116,11 @@ class PullTeamSecrets
         $skipped = [];
         $unreachable = [];
 
+        $tornDown = [];
+
         if ($reconcile) {
             $unreachable = $this->ensureEnvironments($client, $projectId, $buckets);
+            $tornDown = $this->tearDownStaleEnvironments($client, $projectId, $buckets);
         }
 
         foreach ($buckets as $bucket) {
@@ -208,6 +211,7 @@ class PullTeamSecrets
             'hidden' => array_values(array_unique($hidden)),
             'skipped' => array_values(array_unique($skipped)),
             'unreachableEnvironments' => $unreachable,
+            'tornDownEnvironments' => $tornDown,
         ];
     }
 
@@ -246,6 +250,53 @@ class PullTeamSecrets
         }
 
         return $unreachable;
+    }
+
+    /**
+     * Delete Infisical environments that no Coolify environment maps to.
+     *
+     * ONLY removes an environment that is completely empty - no secrets and
+     * no folders, checked recursively. Everything else in this integration is
+     * additive precisely so a bug cannot destroy secrets, and environment
+     * deletion is the one genuinely destructive operation, so it is fenced.
+     *
+     * The fence matters because slug matching has failed before: Infisical
+     * seeds dev/staging/prod while Coolify derives slugs from its own
+     * environment names, and the API returns only what the identity can see,
+     * so a permissions blip looks identical to "this is stale". An emptiness
+     * check means the worst case is a no-op rather than data loss.
+     *
+     * @param  array<string, array<string, mixed>>  $buckets
+     * @return array<int, string> slugs actually deleted
+     *
+     * @throws InfisicalApiException
+     */
+    private function tearDownStaleEnvironments($client, string $projectId, array $buckets): array
+    {
+        $wanted = collect($buckets)->pluck('environment')->unique()->all();
+
+        // Nothing to compare against: never interpret an empty walk as
+        // "delete everything".
+        if ($wanted === []) {
+            return [];
+        }
+
+        $deleted = [];
+
+        foreach ($client->listEnvironments($projectId) as $slug => $environmentId) {
+            if (in_array($slug, $wanted, true)) {
+                continue;
+            }
+
+            if (! $client->environmentIsEmpty($projectId, $slug)) {
+                continue;
+            }
+
+            $client->deleteEnvironment($projectId, $environmentId);
+            $deleted[] = $slug;
+        }
+
+        return $deleted;
     }
 
     /**
