@@ -120,7 +120,15 @@ class PullTeamSecrets
 
         if ($reconcile) {
             $unreachable = $this->ensureEnvironments($client, $projectId, $buckets);
-            $tornDown = $this->tearDownStaleEnvironments($client, $projectId, $buckets);
+
+            // Teardown is housekeeping. It must never stop a team syncing, so
+            // any failure here is swallowed: an identity without permission to
+            // inspect an environment simply leaves it alone.
+            try {
+                $tornDown = $this->tearDownStaleEnvironments($client, $projectId, $buckets);
+            } catch (InfisicalApiException $e) {
+                $tornDown = [];
+            }
         }
 
         foreach ($buckets as $bucket) {
@@ -288,12 +296,18 @@ class PullTeamSecrets
                 continue;
             }
 
-            if (! $client->environmentIsEmpty($projectId, $slug)) {
+            try {
+                if (! $client->environmentIsEmpty($projectId, $slug)) {
+                    continue;
+                }
+
+                $client->deleteEnvironment($projectId, $environmentId);
+                $deleted[] = $slug;
+            } catch (InfisicalApiException $e) {
+                // Cannot see inside it, so cannot prove it is empty. Never
+                // delete on an unknown: leave it and move on.
                 continue;
             }
-
-            $client->deleteEnvironment($projectId, $environmentId);
-            $deleted[] = $slug;
         }
 
         return $deleted;
