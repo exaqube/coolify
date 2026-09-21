@@ -17,6 +17,7 @@ use App\Models\GitlabApp;
 use App\Models\InfisicalConnection;
 use App\Models\InstanceSettings;
 use App\Models\MicrosoftTeamsNotificationSettings;
+use App\Models\IntegrationToken;
 use App\Models\PrivateKey;
 use App\Models\Project;
 use App\Models\PushoverNotificationSettings;
@@ -55,6 +56,7 @@ use App\Policies\GithubAppPolicy;
 use App\Policies\GitlabAppPolicy;
 use App\Policies\InfisicalConnectionPolicy;
 use App\Policies\InstanceSettingsPolicy;
+use App\Policies\IntegrationTokenPolicy;
 use App\Policies\NotificationPolicy;
 use App\Policies\PrivateKeyPolicy;
 use App\Policies\ProjectPolicy;
@@ -136,6 +138,7 @@ class AuthServiceProvider extends ServiceProvider
 
         // Cloud provider policies
         CloudProviderToken::class => CloudProviderTokenPolicy::class,
+        IntegrationToken::class => IntegrationTokenPolicy::class,
         CloudInitScript::class => CloudInitScriptPolicy::class,
         Tag::class => TagPolicy::class,
 

@@ -6,6 +6,7 @@ use App\Actions\Infisical\PushGeneratedSecret;
 use App\Exceptions\InfisicalManagedVariableException;
 use App\Services\Infisical\InfisicalLock;
 use App\Support\ValidationPatterns;
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 class SharedEnvironmentVariable extends Model
 {
     use HasFactory;
+    use Auditable;
 
     protected $fillable = [
         // Core identification

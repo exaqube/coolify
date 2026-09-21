@@ -7,6 +7,7 @@ use App\Exceptions\InfisicalManagedVariableException;
 use App\Models\EnvironmentVariable as ModelsEnvironmentVariable;
 use App\Services\Infisical\InfisicalLock;
 use App\Support\ValidationPatterns;
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -39,6 +40,7 @@ use OpenApi\Attributes as OA;
 class EnvironmentVariable extends BaseModel
 {
     use HasFactory;
+    use Auditable;
 
     public const BUILDPACK_CONTROL_VARIABLE_PREFIXES = ['NIXPACKS_', 'RAILPACK_'];
 
@@ -331,15 +333,19 @@ class EnvironmentVariable extends BaseModel
     protected function isShared(): Attribute
     {
         return Attribute::make(
-            get: function () {
-                $type = str($this->value)->after('{{')->before('.')->value;
-                if (str($this->value)->startsWith('{{'.$type) && str($this->value)->endsWith('}}')) {
-                    return true;
-                }
-
-                return false;
-            }
+            get: fn () => $this->isSharedReference(),
         );
+    }
+
+    private function isSharedReference(): bool
+    {
+        if (blank($this->value)) {
+            return false;
+        }
+
+        $types = implode('|', SHARED_VARIABLE_TYPES);
+
+        return preg_match('/^{{\s*(?:'.$types.')\..*}}$/s', trim($this->value)) === 1;
     }
 
     public function get_real_environment_variables_with_server(?string $environment_variable = null, $resource = null, $server = null)
@@ -382,6 +388,23 @@ class EnvironmentVariable extends BaseModel
         }
 
         return $real_value;
+    }
+
+    public function resolveReferencedValue(): ?string
+    {
+        $value = $this->value;
+
+        if ($this->is_literal || blank($value) || ! str($value)->startsWith('$')) {
+            return $value;
+        }
+
+        $referencedKey = str($value)->after('$')->trim('{}')->value();
+
+        return static::where('resourceable_type', $this->resourceable_type)
+            ->where('resourceable_id', $this->resourceable_id)
+            ->where('is_preview', (bool) $this->is_preview)
+            ->where('key', $referencedKey)
+            ->first()?->value ?? $value;
     }
 
     private function get_real_environment_variables(?string $environment_variable = null, $resource = null)
@@ -471,8 +494,6 @@ class EnvironmentVariable extends BaseModel
 
     protected function updateIsShared(): void
     {
-        $type = str($this->value)->after('{{')->before('.')->value;
-        $isShared = str($this->value)->startsWith('{{'.$type) && str($this->value)->endsWith('}}');
-        $this->is_shared = $isShared;
+        $this->is_shared = $this->isSharedReference();
     }
 }
