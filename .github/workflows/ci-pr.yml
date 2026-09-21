@@ -1,0 +1,88 @@
+# Pull request CI: code style and the test suite.
+#
+# The repository's existing pr-quality.yaml only checks PR metadata (title,
+# description, target branch). Nothing ran Pint or the tests, so a PR could be
+# merged without either ever being executed. This fills that gap.
+#
+# No service containers are needed: phpunit.xml forces DB_CONNECTION=testing,
+# which config/database.php maps to sqlite :memory:, and CACHE_DRIVER=array.
+name: CI - Pull request
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-pr-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PHP_VERSION: "8.4"
+
+jobs:
+  pint:
+    name: Code style
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+        with:
+          composer-options: "--prefer-dist --no-interaction --no-progress"
+
+      # --test reports violations without rewriting files, so CI never pushes
+      # style changes back. Run `vendor/bin/pint --dirty` locally to fix.
+      - name: Check formatting
+        run: vendor/bin/pint --test
+
+  tests:
+    name: Tests (${{ matrix.suite }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Browser tests are deliberately excluded. tests/Browser is legacy and
+        # tests/v4/Browser needs a Playwright download and a headless Chromium,
+        # which belongs in its own workflow rather than gating every PR.
+        suite: [Unit, Feature]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          # pdo_sqlite backs the in-memory test database; sockets is required
+          # by the app and is not enabled by default.
+          extensions: pdo_sqlite, sqlite3, sockets, bcmath, intl, zip
+          # Pest forks a process per test file and the child does not inherit
+          # an -d flag, so the limit has to be set in the ini.
+          ini-values: memory_limit=-1
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+        with:
+          composer-options: "--prefer-dist --no-interaction --no-progress"
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env 2>/dev/null || cp .env.development.example .env
+          php artisan key:generate --no-interaction
+
+      - name: Run ${{ matrix.suite }} tests
+        run: php artisan test --testsuite=${{ matrix.suite }} --compact
