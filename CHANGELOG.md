@@ -6133,6 +6133,7 @@ All notable changes to this project will be documented in this file.
 - *(compose)* Validate Docker network names (#11914)
 - *(webhooks)* Reject incomplete Stripe configuration
 - *(webhooks)* Reject incomplete Stripe configuration (#11915)
+- *(infisical)* Treat a missing folder or environment as empty, not an error
 
 ### 💼 Other
 
@@ -7549,6 +7550,7 @@ All notable changes to this project will be documented in this file.
 - *(infisical)* Mark the instance-wide design as not implemented
 - Clarify restart type
 - Clarify restart cause (#11774)
+- Update changelog
 - Update changelog
 
 ### ⚡ Performance
