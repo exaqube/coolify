@@ -15,8 +15,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StandaloneClickhouse extends BaseModel
 {
-    use ClearsGlobalSearchCache, HasDatabaseHealthCheck, HasFactory, HasMetrics, HasSafeStringAttribute, LocksInfisicalManagedCredentials, SoftDeletes;
     use Auditable, ClearsGlobalSearchCache, HasDatabaseHealthCheck, HasFactory, HasMetrics, HasSafeStringAttribute, HasSecretManager, SoftDeletes;
+    use ClearsGlobalSearchCache, HasDatabaseHealthCheck, HasFactory, HasMetrics, HasSafeStringAttribute, LocksInfisicalManagedCredentials, SoftDeletes;
 
     protected array $auditExclude = ['last_online_at'];
 

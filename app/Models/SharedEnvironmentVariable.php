@@ -13,8 +13,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class SharedEnvironmentVariable extends Model
 {
-    use HasFactory;
     use Auditable;
+    use HasFactory;
 
     protected $fillable = [
         // Core identification

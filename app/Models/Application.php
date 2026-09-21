@@ -12,7 +12,6 @@ use App\Services\Infisical\InfisicalLock;
 use App\Support\DomainPortOverrides;
 use App\Support\DomainUrlParts;
 use App\Traits\Auditable;
-
 use App\Traits\ClearsGlobalSearchCache;
 use App\Traits\HasConfiguration;
 use App\Traits\HasMetrics;

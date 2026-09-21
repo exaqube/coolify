@@ -39,8 +39,8 @@ use OpenApi\Attributes as OA;
 )]
 class EnvironmentVariable extends BaseModel
 {
-    use HasFactory;
     use Auditable;
+    use HasFactory;
 
     public const BUILDPACK_CONTROL_VARIABLE_PREFIXES = ['NIXPACKS_', 'RAILPACK_'];
 

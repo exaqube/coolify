@@ -7,7 +7,6 @@ use App\Enums\ProcessStatus;
 use App\Services\ContainerStatusAggregator;
 use App\Support\DomainPortOverrides;
 use App\Traits\Auditable;
-
 use App\Traits\ClearsGlobalSearchCache;
 use App\Traits\HasSafeStringAttribute;
 use App\Traits\HasSecretManager;
