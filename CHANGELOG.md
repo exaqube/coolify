@@ -1739,6 +1739,8 @@ All notable changes to this project will be documented in this file.
 - *(servers)* Add configurable deployment and build roles
 - *(audit)* Expand event tracking and remove scheduled job monitoring
 - Native Infisical secret management, Microsoft Teams notifications, and fork CI/CD (#1)
+- *(infisical)* Make the scheduled sync reconcile instead of only pulling
+- *(infisical)* Show the resource variable screen as locked, and tear down stale environments
 
 ### 🐛 Bug Fixes
 
@@ -7547,6 +7549,7 @@ All notable changes to this project will be documented in this file.
 - *(infisical)* Mark the instance-wide design as not implemented
 - Clarify restart type
 - Clarify restart cause (#11774)
+- Update changelog
 
 ### ⚡ Performance
 
@@ -8589,6 +8592,7 @@ All notable changes to this project will be documented in this file.
 - *(realtime)* Enable manual runs and config-triggered builds
 - *(release)* Bump Coolify and realtime versions
 - Scope the PR checks to what this repository can actually pass
+- Drop the anti-slop PR quality gate in this fork
 
 ### ◀️ Revert
 
