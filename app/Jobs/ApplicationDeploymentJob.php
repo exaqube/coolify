@@ -1504,6 +1504,10 @@ class ApplicationDeploymentJob implements ShouldBeEncrypted, ShouldQueue
      */
     private function substitute_remote_secrets(string $value, string $envKey): string
     {
+        if (! RemoteSecretReferences::containsReference($value)) {
+            return $value;
+        }
+
         $secrets = $this->remote_secrets();
         $missing = RemoteSecretReferences::missingKeys($value, $secrets);
 

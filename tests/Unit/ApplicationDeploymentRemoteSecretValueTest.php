@@ -12,3 +12,11 @@ it('quotes JSON remote secrets so compose treats their contents literally', func
     'array containing a comment marker' => ['["value # not a comment"]', '\'["value # not a comment"]\''],
     'object containing an apostrophe' => ['{"password":"it\'s $ecret"}', '"{\\"password\\":\\"it\'s $$ecret\\"}"'],
 ]);
+
+it('leaves values without secret references alone instead of demanding a secret manager', function () {
+    $job = (new ReflectionClass(ApplicationDeploymentJob::class))->newInstanceWithoutConstructor();
+    $method = new ReflectionMethod(ApplicationDeploymentJob::class, 'substitute_remote_secrets');
+
+    // No secret manager link exists on this job; a plain value must not trigger a lookup.
+    expect($method->invoke($job, 'plain-value', 'SOME_KEY'))->toBe('plain-value');
+});
