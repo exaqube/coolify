@@ -7559,6 +7559,7 @@ All notable changes to this project will be documented in this file.
 - Update changelog
 - Update changelog
 - Update changelog
+- Update changelog
 
 ### ⚡ Performance
 
@@ -8603,6 +8604,7 @@ All notable changes to this project will be documented in this file.
 - Scope the PR checks to what this repository can actually pass
 - Drop the anti-slop PR quality gate in this fork
 - Drop upstream's Docker Hub SHA build
+- Remove sync main to next workflow
 
 ### ◀️ Revert
 
