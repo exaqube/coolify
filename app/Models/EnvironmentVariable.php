@@ -145,6 +145,17 @@ class EnvironmentVariable extends BaseModel
         });
 
         static::saving(function (self $variable): void {
+            // Re-saving an unchanged variable protects nothing, and refusing it blocks
+            // unrelated saves: renaming a service re-saves its template fields.
+            // is_shared is derived from the value by updateIsShared(), and the value
+            // mutator re-encrypts on every assignment, so compare plaintext instead.
+            $humanChanges = collect($variable->getDirty())->keys()
+                ->reject(fn (string $key) => $key === 'is_shared'
+                    || ($key === 'value' && $variable->value === $variable->getOriginal('value')));
+            if ($variable->exists && $humanChanges->isEmpty()) {
+                return;
+            }
+
             self::guardInfisicalLock($variable);
         });
 
