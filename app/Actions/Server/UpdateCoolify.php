@@ -20,6 +20,12 @@ class UpdateCoolify
 
     public function handle($manual_update = false)
     {
+        if (! config('constants.coolify.upstream_updates')) {
+            Log::info('Skipping upstream Coolify update: this fork deploys its own image (UPSTREAM_UPDATES=false).');
+
+            return;
+        }
+
         if (isDev()) {
             Sleep::for(10)->seconds();
 

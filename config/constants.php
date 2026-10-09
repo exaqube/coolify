@@ -8,6 +8,8 @@ return [
         'railpack_version' => '0.23.0',
         'self_hosted' => env('SELF_HOSTED', true),
         'autoupdate' => env('AUTOUPDATE'),
+        // This fork ships its own image; upstream's upgrade.sh would swap it for coollabsio/coolify.
+        'upstream_updates' => env('UPSTREAM_UPDATES', false),
         'base_config_path' => env('BASE_CONFIG_PATH', '/data/coolify'),
         'registry_url' => env('REGISTRY_URL', 'docker.io'),
         'helper_image' => env('HELPER_IMAGE', env('REGISTRY_URL', 'docker.io').'/coollabsio/coolify-helper'),

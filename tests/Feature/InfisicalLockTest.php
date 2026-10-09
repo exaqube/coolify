@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Database\StartRedis;
 use App\Exceptions\InfisicalManagedVariableException;
 use App\Models\Application;
 use App\Models\Environment;
@@ -345,4 +346,34 @@ it('allows an environment variable write on an unarmed team', function () {
         'resourceable_type' => Application::class,
         'resourceable_id' => $application->id,
     ]))->not->toThrow(InfisicalManagedVariableException::class);
+});
+
+it('starts a redis whose credentials are managed by infisical', function () {
+    $redis = lockedOwner(StandaloneRedis::class);
+    InfisicalLock::asSystem(function () use ($redis) {
+        $redis->runtime_environment_variables()->delete();
+        // Duplicate REDIS_USERNAME rows with different values exist in production;
+        // StartRedis used to copy the first onto the second, a real change the lock refuses.
+        foreach ([['REDIS_PASSWORD', 'from-infisical'], ['REDIS_USERNAME', 'default'], ['REDIS_USERNAME', 'other']] as [$key, $value]) {
+            $redis->runtime_environment_variables()->create([
+                'key' => $key,
+                'value' => $value,
+                'is_infisical_managed' => true,
+            ]);
+        }
+    });
+
+    $action = new StartRedis;
+    $action->database = $redis->fresh();
+    $environmentVariables = (new ReflectionMethod($action, 'generate_environment_variables'))->invoke($action);
+
+    expect($environmentVariables)->toContain('REDIS_PASSWORD=from-infisical');
+});
+
+it('creates exactly one redis username row', function () {
+    $redis = lockedOwner(StandaloneRedis::class);
+
+    $created = create_standalone_redis($redis->environment_id, test()->destination);
+
+    expect($created->runtime_environment_variables()->where('key', 'REDIS_USERNAME')->count())->toBe(1);
 });

@@ -276,9 +276,11 @@ class StartRedis
                     }
                 }
             } else {
-                if ($env->key === 'REDIS_PASSWORD' && ! $usesSecretManager) {
+                // Infisical owns managed rows; writing to them trips the lock and aborts the start.
+                $canWrite = ! $usesSecretManager && ! $env->is_infisical_managed;
+                if ($env->key === 'REDIS_PASSWORD' && $canWrite) {
                     $env->update(['value' => $this->database->redis_password]);
-                } elseif ($env->key === 'REDIS_USERNAME' && ! $usesSecretManager) {
+                } elseif ($env->key === 'REDIS_USERNAME' && $canWrite) {
                     $env->update(['value' => $this->database->redis_username]);
                 }
 
