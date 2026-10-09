@@ -36,8 +36,10 @@
                     @if (
                         $server->proxy->last_applied_settings &&
                             $server->proxy->last_saved_settings !== $server->proxy->last_applied_settings)
-                        <x-callout type="warning" title="Configuration out of sync">
-                            Restart the proxy to apply the saved configuration.
+                        <x-callout type="warning" title="Your configuration changed, please restart the proxy." />
+                    @elseif ($server->hasPendingProxyConfiguration())
+                        <x-callout type="warning" title="Restart required">
+                            Restart the proxy to apply TLS certificate changes.
                         </x-callout>
                     @else
                         <div class="flex items-start gap-3">
@@ -110,23 +112,30 @@
                         </x-slot:actions>
 
                         @if ($server->proxyType() === ProxyTypes::TRAEFIK->value)
-                            @if ($server->detected_traefik_version === 'latest')
+                            @if ($this->traefikVersionForWarning === 'latest')
                                 <x-callout type="warning" title="Unpinned Traefik version">
                                     The proxy uses the <span class="font-mono">latest</span> tag. Pin
                                     <span class="font-mono">traefik:{{ $this->latestTraefikVersion }}</span>
                                     for predictable updates.
                                 </x-callout>
-                            @elseif($this->isTraefikOutdated)
+                            @endif
+                            @if ($this->isTraefikOutdated)
                                 <x-callout type="warning" title="Traefik patch update available">
-                                    Version {{ $this->latestTraefikVersion }} is available. Test the update before
-                                    applying it to production servers.
-                                </x-callout>
-                            @elseif($this->newerTraefikBranchAvailable)
-                                <x-callout type="info" title="New Traefik minor version available">
-                                    {{ $this->newerTraefikBranchAvailable }} is available. Review the Traefik
-                                    changelog for breaking changes before upgrading.
+                                    {{ $server->detected_traefik_version ? 'Running version' : 'Configured image' }}
+                                    v{{ ltrim($this->traefikVersionForWarning, 'v') }}. The latest patch
+                                    for this branch is {{ $this->latestTraefikVersion }}. Test the update before applying it
+                                    to production servers.
                                 </x-callout>
                             @endif
+                            @if ($this->newerTraefikBranchAvailable)
+                                <x-callout type="info" title="New Traefik minor version available">
+                                    {{ $this->newerTraefikBranchAvailable }} is available (latest patch:
+                                    {{ $this->latestNewerTraefikVersion }}). Review the Traefik changelog for breaking
+                                    changes before upgrading.
+                                </x-callout>
+                            @endif
+                        @elseif ($this->outdatedCaddyImage)
+                            <x-server.caddy-image-outdated-callout :image="$this->outdatedCaddyImage" />
                         @endif
 
                         <div wire:loading.flex wire:target="loadProxyConfiguration"

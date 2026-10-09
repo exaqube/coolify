@@ -19,6 +19,7 @@ use App\Traits\HasSecretManagerAutocomplete;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 
@@ -103,7 +104,6 @@ class Show extends Component
     public array $problematicVariables = [];
 
     protected $listeners = [
-        'refreshEnvs' => 'refresh',
         'refresh',
         'compose_loaded' => '$refresh',
     ];
@@ -184,7 +184,7 @@ class Show extends Component
 
     public function copyValue(): ?string
     {
-        if ($this->env->is_shown_once || (auth()->user()?->isMember() ?? true)) {
+        if ($this->env->is_shown_once || $this->valuesHiddenForUser()) {
             return null;
         }
 
@@ -195,6 +195,7 @@ class Show extends Component
         return $this->env->get_real_environment_variables_with_server(
             $this->env->resolveReferencedValue(),
             $this->env->resourceable,
+            revealLockedSharedVariables: false,
         );
     }
 
@@ -241,7 +242,7 @@ class Show extends Component
             $this->is_required = (bool) ($this->env->is_required ?? false);
             // Use the stored column, not the value-based accessor (that decrypts).
             $this->is_shared = (bool) ($this->env->getAttributes()['is_shared'] ?? false);
-            $this->isValueHidden = auth()->user()?->isMember() ?? true;
+            $this->isValueHidden = $this->valuesHiddenForUser();
 
             if ($this->valuesLoaded) {
                 $this->hydrateValueFields();
@@ -261,19 +262,26 @@ class Show extends Component
         $this->is_shared = (bool) ($this->env->is_shared ?? false);
 
         if ($this->is_shared) {
-            $this->real_value = $this->env->real_value;
+            $this->real_value = $this->env instanceof ModelsEnvironmentVariable
+                ? $this->env->displayRealValue()
+                : $this->env->real_value;
             $this->is_really_required = $this->is_required && blank($this->real_value);
         } else {
             $this->real_value = null;
             $this->is_really_required = $this->is_required && blank($this->value);
         }
 
-        if ($this->env->is_shown_once || (auth()->user()?->isMember() ?? true)) {
+        if ($this->env->is_shown_once || $this->valuesHiddenForUser()) {
             $this->value = null;
             $this->real_value = null;
         }
 
-        $this->isValueHidden = auth()->user()?->isMember() ?? true;
+        $this->isValueHidden = $this->valuesHiddenForUser();
+    }
+
+    private function valuesHiddenForUser(): bool
+    {
+        return auth()->user()?->cannot('update', $this->env) ?? true;
     }
 
     public function checkEnvs()
@@ -355,8 +363,8 @@ class Show extends Component
             }
             $this->serialize();
             $this->env->save();
-            $this->checkEnvs();
-            $this->dispatch('refreshEnvs');
+            $this->refresh();
+            $this->dispatch('refreshEnvs')->to(All::class);
         } catch (\Throwable $e) {
             $this->env->refresh();
             $this->syncData();
@@ -395,6 +403,8 @@ class Show extends Component
             if ($this->is_required && $this->resource instanceof Service) {
                 event(new ApplicationConfigurationChanged($this->resource->team()->id));
             }
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             return handleError($e, $this);
         }
@@ -406,7 +416,7 @@ class Show extends Component
         // Shared across all Show row components in the same request (edit modals).
         static $requestCache = [];
 
-        $team = currentTeam();
+        $team = $this->isSharedVariable ? $this->env->team : $this->env->resourceable?->team();
         $cacheKey = implode('|', [
             $team?->id ?? 'none',
             data_get($this->parameters, 'project_uuid', ''),

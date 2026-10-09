@@ -9,7 +9,6 @@ use App\Models\Service;
 use App\Services\Infisical\InfisicalLock;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Component;
-use Symfony\Component\Yaml\Yaml;
 
 class DockerCompose extends Component
 {
@@ -40,7 +39,7 @@ class DockerCompose extends Component
             $this->validate([
                 'dockerComposeRaw' => 'required',
             ]);
-            $this->dockerComposeRaw = Yaml::dump(Yaml::parse($this->dockerComposeRaw), 10, 2, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK);
+            parseDockerComposeYaml($this->dockerComposeRaw);
 
             // Validate for command injection BEFORE saving to database
             validateDockerComposeForInjection($this->dockerComposeRaw);

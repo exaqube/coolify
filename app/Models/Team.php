@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use App\Actions\User\RevokeUserTeamTokens;
+use App\Contracts\ThrottledNotification;
 use App\Events\ServerReachabilityChanged;
 use App\Notifications\Channels\SendsDiscord;
 use App\Notifications\Channels\SendsEmail;
 use App\Notifications\Channels\SendsMicrosoftTeams;
 use App\Notifications\Channels\SendsPushover;
 use App\Notifications\Channels\SendsSlack;
+use App\Notifications\Server\Unreachable;
 use App\Traits\Auditable;
 use App\Traits\HasNotificationSettings;
 use App\Traits\HasSafeStringAttribute;
@@ -16,6 +18,8 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use OpenApi\Attributes as OA;
 
 #[OA\Schema(
@@ -42,7 +46,10 @@ use OpenApi\Attributes as OA;
 
 class Team extends Model implements SendsDiscord, SendsEmail, SendsMicrosoftTeams, SendsPushover, SendsSlack
 {
-    use Auditable, HasFactory, HasNotificationSettings, HasSafeStringAttribute, Notifiable;
+    use Auditable, HasFactory, HasNotificationSettings, HasSafeStringAttribute;
+    use Notifiable {
+        notify as sendNotification;
+    }
 
     protected $fillable = [
         'name',
@@ -127,9 +134,27 @@ class Team extends Model implements SendsDiscord, SendsEmail, SendsMicrosoftTeam
             return true;
         }
         $serverLimit = Team::serverLimit($team);
-        $servers = $team->servers->count();
+        $servers = $team->servers()->count();
 
         return $servers >= $serverLimit;
+    }
+
+    public static function createServerWithinLimit(int $teamId, array $attributes): Server
+    {
+        return DB::transaction(function () use ($teamId, $attributes): Server {
+            self::ensureServerCapacity($teamId);
+
+            return Server::create($attributes);
+        });
+    }
+
+    /** Call within a transaction so the team lock lasts through the server insert. */
+    public static function ensureServerCapacity(int $teamId): void
+    {
+        $team = self::query()->lockForUpdate()->findOrFail($teamId);
+        if (self::serverLimitReached($team)) {
+            throw ValidationException::withMessages(['server' => 'Server limit reached for your subscription.']);
+        }
     }
 
     public function subscriptionPastOverDue()
@@ -260,9 +285,30 @@ class Team extends Model implements SendsDiscord, SendsEmail, SendsMicrosoftTeam
             ]);
             ServerReachabilityChanged::dispatch($server);
             $server->unreachable_count = 3;
-            $server->unreachable_notification_sent = true;
             $server->save();
+            NotificationThrottle::record($server, Unreachable::class);
         }
+    }
+
+    /**
+     * Send a notification, unless it is throttled and was already sent within its interval.
+     * A throttle claim is released when sending throws, so a failed send is retried on the next check.
+     */
+    public function notify($instance): void
+    {
+        $subject = $instance instanceof ThrottledNotification ? $instance->throttleSubject() : null;
+        if ($subject === null) {
+            $this->sendNotification($instance);
+
+            return;
+        }
+
+        NotificationThrottle::sendOnce(
+            $subject,
+            $instance::class,
+            now()->subMinutes($instance->throttleIntervalMinutes()),
+            fn () => $this->sendNotification($instance),
+        );
     }
 
     public function environment_variables()
@@ -316,6 +362,18 @@ class Team extends Model implements SendsDiscord, SendsEmail, SendsMicrosoftTeam
     public function servers()
     {
         return $this->hasMany(Server::class);
+    }
+
+    public function usesSwarm(): bool
+    {
+        return $this->servers()
+            ->where(function ($query) {
+                $query->whereHas('settings', function ($settings) {
+                    $settings->where('is_swarm_manager', true)
+                        ->orWhere('is_swarm_worker', true);
+                })->orWhereHas('swarmDockers');
+            })
+            ->exists();
     }
 
     public function privateKeys()
