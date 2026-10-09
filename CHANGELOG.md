@@ -6139,6 +6139,8 @@ All notable changes to this project will be documented in this file.
 - *(infisical)* Only demand a secret manager when a value references one
 - *(infisical)* Stop the lock refusing unchanged variable saves
 - Start Infisical-managed Redis and stop upstream self-updates
+- *(docker)* Pin serversideup/php base to v4.5.1
+- Stop announcing upstream Coolify releases
 
 ### 💼 Other
 
@@ -7555,6 +7557,7 @@ All notable changes to this project will be documented in this file.
 - *(infisical)* Mark the instance-wide design as not implemented
 - Clarify restart type
 - Clarify restart cause (#11774)
+- Update changelog
 - Update changelog
 - Update changelog
 - Update changelog
