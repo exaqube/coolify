@@ -75,8 +75,9 @@ class CheckForUpdatesJob implements ShouldBeEncrypted, ShouldQueue
 
                 CheckTraefikVersionJob::dispatch();
 
-                // Only mark new version available if Coolify version actually increased
-                if (version_compare($latest_version, $current_version, '>')) {
+                // Only mark new version available if Coolify version actually increased.
+                // Upstream releases don't apply to this fork unless upstream updates are enabled.
+                if (config('constants.coolify.upstream_updates') && version_compare($latest_version, $current_version, '>')) {
                     // New version available
                     $settings->update(['new_version_available' => true]);
                 } else {
