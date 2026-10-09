@@ -1742,6 +1742,109 @@ All notable changes to this project will be documented in this file.
 - *(infisical)* Make the scheduled sync reconcile instead of only pulling
 - *(infisical)* Show the resource variable screen as locked, and tear down stale environments
 - *(infisical)* Use the Infisical brand mark in the navigation
+- *(realtime)* Replace Soketi image with bundled Reverb
+- Deprecate new Docker Swarm usage and group referrers
+- *(realtime)* Replace Soketi with bundled Reverb (#10530)
+- *(dev)* Support KVM-backed localhost development servers
+- *(dev)* Reuse prepared QEMU images for faster VM startup
+- *(dev)* Run one isolated dev instance per git branch
+- Add Traefik ACME cert UI and shared managed DNS record ownership
+- *(services)* Allow variables in compose network names
+- *(proxy)* Show sidebar warning icon when proxy is not running
+- *(analytics)* Log Compose resources on Caddy and add service analytics
+- *(analytics)* Use Sentinel resource scope for exact unique visitors
+- *(database)* Add StandaloneSqlite model and migration
+- *(database)* Add sqlite as a standalone database type
+- *(database)* Add sqlite start, stop, restart and delete support
+- *(database)* Support sqlite in migration, cloning and server transfer
+- *(auth)* Authorize sqlite databases with the database policy
+- *(commands)* Include sqlite in cleanup and delete commands
+- *(ui)* Add sqlite database page
+- *(ui)* Add sqlite to the new resource selection
+- *(ui)* List sqlite databases in dashboard, project and destination views
+- *(backups)* Support scheduled sqlite backups
+- *(backups)* Support restoring sqlite backups
+- *(api)* Support sqlite databases in the databases API
+- *(mcp)* Include sqlite in database and infrastructure tools
+- *(database)* Add option to connect a sqlite database to an application in 1 click
+- *(database)* Record which sqlite database a connected volume comes from
+- *(database)* Unlink applications from sqlite and protect connected volumes
+- *(database)* Add experimental standalone SQLite database (#11992)
+- *(database)* Let docker compose applications mount the sqlite volume
+- *(dns)* Release orphaned managed DNS records on a schedule
+- *(compose)* Warn about legacy external volumes and list external volumes
+- *(service)* Add docling document ai (#9121)
+- *(service)* Update emqx image to v6.2.2 (#10922)
+- *(service)* Add portabase (#11054)
+- *(service)* Update homarr to v1.74.0 (#9821)
+- *(service)* Update authentik to v2026.2.1 (#8791)
+- *(service)* Update authentik to v2026.5.6
+- *(service)* Add engram template (#10808)
+- *(service)* Add zero (#10713)
+- *(service)* Update hermes agent with webui (#10702)
+- *(service)* Add hermes agent dashboard template (#10703)
+- *(service)* Add bulwark webmail template (#11180)
+- *(service)* Remove watchtower from budibase
+- *(service)* Update terraria image and environment variables (#11322)
+- *(service)* Update vikunja service configuration (#10331)
+- *(service)* Update vikunja with postgresql configuration
+- *(service)* Update karakeep template (#11245)
+- *(service)* Update rallly template
+- *(service)* Add Obsidian template (#10704)
+- *(service)* Add Snipe-IT as a service (#10544)
+- *(service)* Add PeerTube (#9564)
+- *(service)* Update autobase to version 2.10 (#9850)
+- *(service)* Update signoz to v0.137.1 (#11346)
+- *(service)* Add some more needed envs to bugsink
+- *(service)* Add garage default access key, secret key & bucket (#10735)
+- *(service)* Add Linkwarden (#11561)
+- *(service)* Add Lidarr (#11576)
+- *(services)* Add 9router template (#11592)
+- *(service)* Update beszel-agent to v0.19.0 (#11647)
+- *(service)* Update appwrite to v2.0.0 (#10810)
+- *(services)* Add Honcho template (#11184)
+- *(service)* Update plausible community-edition to v3.2.1 (#10975)
+- *(service)* Update autobase to v2.11 (#11749)
+- *(service)* Add OpenWA templates (#11448)
+- *(services)* Update and add new service templates (#11217)
+- *(services)* Update service template json
+- *(dev)* Run localhost dev server in a Lima VM on macOS
+- *(ui)* Link healthcheck status row to the healthcheck page
+- *(ui)* Add app icons and web manifest
+- *(logs)* Render runtime logs in a virtualized list
+- *(api)* Add delete_from_provider option to server delete endpoint (#12026)
+- *(server)* Add dev-only toggle for server management ownership
+- *(server)* Add Docker images page with per-image delete
+- *(server)* Confirm Docker image deletion with a typed reference modal
+- *(server)* Add Docker images page with per-image delete (#11689)
+- *(server)* Move management toggle to connection header and show connection first
+- *(scheduler)* Dispatch scheduled jobs by their stored next run time
+- *(s3)* Revalidate unusable S3 storages hourly
+- *(server)* Add Docker registry logins page with per-server login (#12048)
+- *(github-runners)* Add ephemeral self-hosted runners on build servers (#12054)
+- Add import restore options, OAuth confirmation, and fixes
+- *(proxy)* Back up acme.json before changes and allow restoring backups
+- *(github-runners)* Allow public repositories and refuse pull request jobs by default
+- *(server)* Describe server role options in listbox dropdown
+- *(webhooks)* Require 16 characters for new manual webhook secrets
+- *(scheduler)* Run one scheduled job dispatcher for each schedule type
+- *(cdn)* Add Cloudflare cache purge to sync:cdn
+- *(auth)* Show OAuth-only registration notice on login page
+- *(horizon)* Add fixed-size per-queue worker pools on Coolify Cloud
+- *(api)* Add endpoints to list, get, and open preview deployments
+- *(cleanup)* Purge stale unsubscribed teams (#11668)
+- *(audit)* Store encrypted field-level changes on mutations
+- *(audit)* Show encrypted field-level mutation changes (#11788)
+- *(audit)* Log account, resource, and instance settings changes
+- *(account)* Add self-service deletion and cancellation flow (#12088)
+- *(dashboard)* Show pending team invitations
+- *(scheduler)* Make scheduled job dispatch mode configurable
+- *(backups)* Notify teams of volume backup results
+- *(backups)* Add configurable missing volume backup alerts
+- *(analytics)* Add configurable client IP storage modes
+- *(github-runners)* Support deployment and build servers (#12109)
+- *(search)* Add settings search to the command palette (#12111)
+- *(cloudflared)* Add tunnel updates with background container restart
 
 ### 🐛 Bug Fixes
 
@@ -6141,6 +6244,361 @@ All notable changes to this project will be documented in this file.
 - Start Infisical-managed Redis and stop upstream self-updates
 - *(docker)* Pin serversideup/php base to v4.5.1
 - Stop announcing upstream Coolify releases
+- *(realtime)* Remove obsolete Pusher port defaults
+- *(deployments)* Validate environment variable names used in Docker commands
+- *(deployments)* Validate environment variable names used in Docker commands (#11917)
+- *(onboarding)* Enforce resource authorization
+- *(onboarding)* Enforce resource authorization (#11920)
+- *(webhooks)* Validate preview repository metadata
+- *(webhooks)* Validate preview repository metadata (#11922)
+- *(proxy)* Normalize port configuration handling
+- *(proxy)* Normalize port configuration handling (#11923)
+- *(reverb)* Separate public Soketi port from internal Reverb port
+- *(reverb)* Always start Reverb service in containers
+- *(reverb)* Align ports, host validation, and dev instance tooling
+- *(reverb)* Route broadcasts through bundled server and validate health
+- *(reverb)* Remove public Pusher connection options
+- Improve terminal and realtime session handling
+- *(service)* Support metadata-only deletion on unreachable servers
+- *(service)* Update Plausible to v3.2.1 due to CVE-2026-8467
+- *(service)* Update Plausible to v3.2.1 due to CVE-2026-8467 (#11939)
+- Align application image validation
+- *(security)* Remove unused application config download action
+- Align notification settings access checks
+- Align notification settings access checks (#11960)
+- *(tags)* Pass only the tag id when quick adding a tag
+- *(tags)* Pass only the tag id when quick adding a tag (#11971)
+- *(backups)* Improve backup command handling
+- *(backups)* Improve backup command handling (#11979)
+- *(api)* Align token permission handling
+- *(api)* Align token permission handling (#11981)
+- *(storage)* Dispatch file saves after commit
+- *(proxy)* Name Traefik logrotate sidecar container
+- *(service)* Save switches without saving pending Compose edits (#11985)
+- *(deployments)* Prevent deployment queue admission races (#11987)
+- *(analytics)* Keep setup prompt dismissed after refresh
+- Show Traefik version warnings before detection completes
+- *(storage)* Preserve and display legacy bind mount source paths
+- *(auth)* Remove email verification notice route
+- *(mcp)* Decouple access from REST API settings
+- *(server-transfer)* Allow local peer targets in development
+- *(env)* Prevent copying unauthorized and shown-once values
+- *(deployment)* Skip secret lookup for plain build variables
+- *(deployment)* Skip missing Compose Dockerfiles with portable realpath
+- *(realtime)* Preserve proxy routing and browser port settings
+- *(auth)* Honor instance registration for non-OIDC OAuth providers
+- *(database)* Restore every supported backup format safely
+- *(servers)* Build only on dedicated build servers
+- *(storage)* Confine remote paths on BusyBox and non-root servers
+- *(servers)* Stop double sudo on chown/chmod after mkdir
+- *(proxy)* Only emit Caddy log_append on caddy-docker-proxy 2.9+
+- *(domains)* Allow a new dns check to replace a stored result
+- *(previews)* Allow re-checking DNS over a stored completed result
+- *(domains)* Allow a new dns check to replace a stored result (#11951)
+- *(deployments)* Allow legacy runtime-only env var names to deploy
+- Harden traffic analytics, terminal errors and Postgres restores
+- *(proxy)* Remove legacy Traefik dashboard labels from saved configs
+- *(proxy)* Run legacy Traefik label migration outside a transaction
+- *(sources)* Allow private networks for self-hosted Git sources
+- *(tests)* Repair tests that failed on main
+- *(deployments)* Keep secrets out of failed command logs
+- *(webhooks)* Scope manual webhook lockouts to repository and branch
+- *(databases)* Unblock interrupted imports and prevent double starts
+- *(terminal)* Show an error instead of an endless connecting spinner
+- *(deployments)* Explain skipped ARG injection for Compose build contexts
+- *(databases)* Reserve start and restart atomically
+- *(proxy)* Warn about old Caddy images and share the Caddy traffic log path
+- *(compose)* Create network name variables for Compose applications
+- *(databases)* Stop and clean up interrupted or stale imports
+- *(services)* Remove service containers on servers with a non-root user
+- *(compose)* Validate Git-based Docker Compose applications
+- *(webhooks)* Handle pushes without commits and count only distinct failures
+- *(compose)* Keep content files inside the resource directory
+- *(previews)* Remove only the preview's own networks and volumes
+- *(webhooks)* Reject malformed payload values without a 500
+- *(dev)* Rewrite host paths only for the testing-host dev server
+- *(webhooks)* Deploy Gitea pull requests at their head commit
+- *(storage)* Write content files before compose up and never drop their content
+- *(compose)* Use external volumes as declared
+- *(compose)* Keep the old volume of existing resources for external volumes
+- *(dns)* Release managed records when a domain edit removes a hostname
+- *(application)* Do not crash on commit links for git:// repositories
+- *(auth)* Stop storing the current team as a user attribute
+- *(team)* Show the team danger zone only to the team owner
+- *(templates)* Keep local service templates when the CDN bundle is unusable
+- Regressions found by the test suite
+- *(github)* Restore the Test connection button on GitHub sources
+- *(sentinel)* Surface remote fetch errors instead of a TypeError
+- Restore security and broken-feature fixes lost in the revert
+- Restore config diff, error text, delete handler, webhook id and danger zone fixes
+- *(service)* Affine pgvector healthcheck
+- *(service)* Update pterodactyl service templates (#11173)
+- *(service)* Triliumnext healthcheck and platform
+- *(service)* Openclaw environment variable ui (#8629)
+- *(service)* Change cyberchef port from 80 to 8080 (#11170)
+- *(service)* Disable osticket (#10621)
+- *(service)* Optimize chatwoot sidekiq healthcheck (#10920)
+- *(service)* Allow desktop app origins in Buzz template CORS (#11046)
+- *(service)* Switch budibase couchdb to budibase database (#9828)
+- *(service)* Rallly login fails with invalid origin error (#9536)
+- *(service)* Dozzle default password doesn't work (#11235)
+- *(service)* Bugsink superuser value error (#11225)
+- *(service)* Mysql password and user not displayed in the ui
+- *(service)* Vaultwarden SQLite database URL (#11471)
+- *(service)* Twentycrm cannot connect to backend (#11562)
+- *(service)* Fider webpage not loading (#11682)
+- *(service)* Prevent signoz broken-pipe errors (#11640)
+- *(service)* Allow desktop app origins in Buzz template (#11741)
+- *(service)* Chibisafe uploads volume (#11804)
+- *(proxy)* Flag Traefik restart after TLS certificate deletion (#12015)
+- *(email)* Show Resend errors instead of failing in the error handler
+- *(templates)* Keep local service templates when the CDN bundle is unusable
+- *(webhooks)* Always verify manual webhook signatures
+- *(keys)* Check duplicate private keys in the key's own team
+- *(profile)* Close the email change modal after verification
+- *(service)* Show the selected resource status in the service heading
+- Keep existing SSH keys out of onboarding state
+- *(ssh)* Never disable the SSH command timeout
+- *(dev)* Show the Lima VM start command on the localhost server page
+- *(auth)* Keep the current team only in the session
+- *(transfer)* Reuse or create the private key in the target team only
+- *(logs)* Show container lookup errors and reload containers after status checks
+- *(sources)* Validate the selected private key on source settings
+- *(github)* Check the private key before generating app tokens
+- *(logs)* Track the All lines state locally and show loading in the lines control
+- *(servers)* Validate the selected private key when adding a server
+- *(security)* Encrypt stored remote commands and remove them after the final attempt
+- *(deployments)* Do not print build-time values in development debug lines
+- *(api)* Validate delete_from_provider before deleting a server
+- *(cleanup)* Delete old rows in batches and report the real count
+- *(storage)* Refresh storage form values consistently
+- *(databases)* Refresh database form values consistently
+- *(compose)* Show compose content only to users who can edit the resource
+- *(shared-variables)* Show server variable values only to admins
+- *(storage)* Show file mount content only to users who can edit the resource
+- *(api)* Return the saved proxy configuration only with read:sensitive
+- *(permissions)* Show logs and task output only to admins and read:sensitive tokens
+- *(gitlab)* Check the private key before using it for git commands
+- *(server)* Hide server IP addresses on the servers list
+- *(ui)* Replace native browser dialogs with confirmation modals
+- *(multi-server)* Make applications on several servers consistent
+- *(ui)* Clean up the server rows of multi-server applications
+- *(scheduler)* Read fresh server state in each job and log scheduling decisions
+- *(deploy)* Write missing content files before compose up on any server
+- *(ui)* Move deployments indicator into the sidebar
+- *(docker)* Pass the application to the container lookup in scheduled tasks
+- *(help)* Show an error when feedback cannot be delivered
+- *(ui)* Show Cloudflare token link as a button in integration token form
+- *(livewire)* Bind team broadcast listeners to the mounted team
+- *(installer)* Keep resource data ownership on reinstall and upgrade
+- *(ui)* Show validation checkpoints as a vertical list
+- *(multi-server)* Block additional servers with a mismatched proxy (#12053)
+- *(notifications)* Throttle repeated notifications per resource
+- *(api)* Key unauthenticated rate limits by Cloudflare client IP
+- *(proxy)* Run proxy commands without cd for non-root SSH users
+- *(server)* Keep data directory commands working for non-root SSH users
+- *(oauth)* Let pre-existing users link first identity without verification
+- Use GitLab API v4 for OAuth and gate env copy by update policy
+- *(docker)* Stop matching containers by numeric resource id labels
+- *(backup)* Fail compressed dumps when the dump command fails
+- *(service)* Delete resources from Coolify when server is unreachable
+- *(dns)* Lock DNS modal state and unquote modal confirmation args
+- Run SSH wrapper via sh and scope secret tokens to resource team
+- *(env)* Hide hardcoded compose values from users who cannot edit
+- *(git-source)* Follow same-origin redirects for Git provider APIs
+- *(compose)* Allow variables in external volume names
+- *(compose)* Keep name-only declaration for pre-existing volumes
+- *(oauth)* Key non-OIDC identities by provider instance
+- *(team)* Keep users of other teams when an invitation is revoked or expires
+- *(secrets)* Require the secret again when a secret manager connection changes
+- *(proxy)* Accept Compose variables in proxy ports like v4.3.23
+- *(deploy)* Start queued deployments atomically and report cancelled multi-server runs
+- *(database)* Fail expired queued starts instead of running them late
+- *(storage)* Resolve relative file paths, keep volume options on clone, use random clone dirs
+- *(jobs)* Resume S3 revalidation and remove orphaned notification throttles
+- *(service)* Delete a service part even when its container removal fails
+- *(dns)* Compare IPv6 addresses by value
+- *(ui)* Revert failed notification toggles and escape the 2FA setup URL once
+- *(api)* Return 422 for a non-string custom_container_name_prefix
+- *(auth)* Remove the unused Fortify profile route that bypassed the SSO email lock
+- *(database)* Skip MySQL system databases when restoring all databases
+- *(ui)* Clarify dialogs, use a red focus ring on error buttons, fix missing icons
+- *(databases)* Keep SSL certificate files and CA in sync with each engine
+- *(dns)* Send only a public server IP to Cloudflare Domain Connect
+- *(deploy)* Never force start the same deployment twice
+- *(ssl)* Issue P-256 server certificates so Electron clients connect
+- *(database)* Use MongoDB writable-primary health check
+- *(database)* Choose the MongoDB health check shell at run time
+- *(storages)* Clarify volume deletion steps for driver options
+- *(deploy)* Remove the new container when a rolling update fails
+- *(deploy)* Never build the image on additional servers
+- *(proxy)* Accept Docker Compose merge tags in proxy configurations
+- *(webhooks)* Never lock out manual webhook deliveries with a valid signature
+- *(database)* Check MongoDB health with ping
+- *(transfer)* Keep SQLite volume links during server transfer
+- *(secrets)* Skip remote secret names that are not valid variable keys
+- *(secrets)* Keep the secret manager source when cloning resources
+- *(server)* Stop marking servers offline after one failed check
+- *(server)* Recheck unreachable servers before failing deployments
+- *(api)* Respect service_name query param in application logs endpoint
+- *(api)* Harden service_name filter for application logs
+- *(deploy)* Keep the queue moving and keep healthy containers on late failures
+- *(scheduler)* Stop invalid frequency log spam and recover lost queued jobs
+- *(backups)* Back up every SQLite file unless the user picks some
+- *(security)* Authorize import file checks and Vultr status refresh
+- *(ui)* Scope env refreshes, block duplicate container names, use a confirm modal
+- *(templates)* Remove duplicate Homarr key and quoted Bulwark values
+- *(scheduler)* Make scheduled:diagnostics read-only and show the real state
+- *(backups)* Stop volume backup recovery retry storms
+- *(sentinel)* Stop hourly check job pile-up and self-heal Sentinel
+- *(database-import)* Hide import output and avoid temp DB collisions
+- *(database-import)* Stop the restore when the import task fails or loses SSH
+- *(database-import)* Delete staged API uploads that were never imported
+- *(api)* Require the write ability for database imports
+- *(secret-manager)* Use remote secret values exactly and check them before a restart
+- *(databases)* Keep the server password of existing KeyDB and Dragonfly databases
+- *(deployments)* Fail with a clear error for an unsupported static image
+- *(proxy)* Keep Compose merge tags and remove the log rotation sidecar
+- *(services)* Finish service cleanup when a volume cannot be removed
+- *(services)* Resolve the old denoKV template key to deno-kv
+- *(security)* Stop leaking locked shared variables and proxy secrets
+- *(api)* Match database backup configs by database type and id
+- *(api)* Return JSON validation errors and reject unknown fields on PATCH /team
+- *(github-runner)* Skip pull request jobs early and keep runner group restrictions
+- *(oauth)* Require a verified provider email for password users and use the instance callback URL
+- *(auth)* Let OAuth-only users enable 2FA without a password confirmation
+- *(audit)* Reduce audit log noise and keep instance events out of team logs
+- *(security)* Authorize integration token creation
+- *(sudo)* Do not add sudo to pipes inside quoted strings
+- *(sentinel)* Pass the traffic API token to curl on stdin
+- *(reverb)* Use the uv event loop and raise the open-file limit
+- *(previews)* Do not bind preview volumes to the production host device
+- *(backups)* Make overlapping and concurrent backup runs safe
+- *(auth)* Show specific error messages for denied OAuth logins
+- *(auth)* Enforce Google hosted domain and block password-user linking
+- *(ui)* Offset focus ring on highlighted buttons with outline gap
+- *(api)* Hide the legacy password quoting flag of KeyDB and Dragonfly
+- *(scheduler)* Send at most one missed-run notification per hour per schedule
+- *(proxy)* Remove legacy Traefik dashboard labels only in the traefik service
+- *(auth)* Allow OAuth sign-up with an unverified provider email
+- Enforce webhook lockouts and stop cancelled runner provisioning
+- *(auth)* Accept Entra ID xms_edov claim as verified OIDC email
+- *(queue)* Run service and database start commands on the deployment queue
+- *(ssh)* Do not replay remote commands that failed on the server
+- *(status)* Store the status of a database or service right after it starts
+- *(queue)* Coalesce queued container status and helper cleanup jobs per server
+- *(scheduler)* Bound occurrence recovery and fail interrupted claims
+- *(server)* Stagger Sentinel version and patch checks per server
+- *(volume-backups)* Back off failed container and S3 recovery
+- *(docker-cleanup)* Run one bounded cleanup per server on the maintenance queue
+- *(docker-cleanup)* Clean after a resource stop only when the disk needs it
+- *(horizon)* Route webhook jobs to a dedicated cloud webhooks queue
+- *(server)* Skip Sentinel checks on unreachable servers
+- *(queues)* Run service restarts and proxy start/restart on the deployments queue
+- *(proxy)* Connect coolify-proxy to destination network before compose up
+- *(proxy)* Stop automatic proxy network reconnects on status checks
+- *(server)* Remove redundant SSH work from server checks
+- *(docker)* Reduce production image size
+- *(sentinel)* Repair stalled Sentinel and show why pushes fail
+- *(audit)* Redact object values and isolate change preparation failures
+- *(audit)* Redact raw credential fields and keep hidden fields excluded
+- *(previews)* Restrict PR loading and status updates to GitHub Apps
+- Add column headers to analytics tables
+- *(analytics)* Label zero response status in traffic breakdowns
+- *(service)* Detect registry-prefixed Grafana server images (#10617)
+- *(sentinel)* Refresh UI on container health and status changes
+- *(settings)* Load instance backup page without a backup schedule
+- *(ui)* Copy DNS record values on plain http instances
+- Support host storage paths and clean up cancelled deployments
+- *(storage)* Require deploy permission for external host writes
+- Restrict proxy content access and scope backup storage to owners
+- Enforce resource team isolation and preserve ClickHouse data
+- *(database)* Reject blocked starts before queueing operations
+- *(api)* Skip domain generation for Docker Compose applications
+- Protect restores, preview imports, and analytics access
+- *(subscription)* Require team admin for billing actions
+- *(api)* Enforce validation and deploy ability on database create
+- *(previews)* Match preview containers by exact pull request id
+- *(service)* Write large compose files through SSH stdin
+- *(scheduler)* Accept ScheduledJobManager jobs queued before the upgrade
+- *(deployments)* Fail a deployment when its job cannot be dispatched
+- *(deployments)* Advance the queue of an additional server
+- *(deployments)* Start queued deployments of the application on all servers
+- *(storage)* Let the S3 revalidation unique lock expire
+- *(jobs)* Let the unique locks of scheduled instance jobs expire
+- *(server)* Retry a manual Docker cleanup while another cleanup runs
+- *(server)* Fail only the execution of the failed Docker cleanup job
+- *(github-runners)* Do not reconcile servers with disabled runners
+- *(service)* Read compose up and pull input from /dev/null
+- *(backups)* Reset per-database state in a multi-database backup
+- *(backups)* Set finished_at for each database of a backup run
+- *(backups)* Treat removed containers as recovered after a volume backup
+- *(auth)* Use the resource team in database import, SQLite, and tokens
+- *(ui)* Validate secret manager settings and lock server-built lists
+- *(audit)* Return 403 on the audit log without a session team
+- *(api)* Require the deploy ability for database imports from a server path
+- *(api)* Reject custom_internal_name without consistent container naming
+- *(api)* Limit pull request ids to the database integer range
+- *(mcp)* Limit the deploy tool pull request id to the integer range
+- *(config)* Use docker.io as the default registry
+- *(notifications)* Send a disk usage alert again after usage drops
+- *(previews)* Give each preview its own volume for external volumes
+- *(databases)* Let REDIS_PASSWORD override the KeyDB and Dragonfly password
+- *(sentinel)* Prevent concurrent starts and duplicate restarts (#12100)
+- *(previews)* Isolate NFS and CIFS volumes from production
+- *(server)* Keep commands after mkdir -p for non-root users
+- *(api)* Enable consistent container naming for a custom internal name
+- *(databases)* Keep the server password of existing Redis databases
+- *(deployments)* Validate build-time variable names only when building
+- *(deployments)* Advance the queue on all servers after a cancel
+- *(server)* Fail the queued deployments of a deleted server
+- *(server)* Reset disk alerts only after usage recovers
+- *(auth)* Protect the root user and owners from deletion by admins
+- *(ui)* Lock the server-built domain state of applications and services
+- *(auth)* Do not accept team invitations on login
+- *(ui)* Keep the light custom theme rule for white surfaces
+- *(ui)* Deny members on cloud tokens and OAuth settings without a 500
+- *(ui)* Pass values to Alpine correctly in component attributes
+- *(audit)* Log security resource changes under the resource team
+- *(auth)* Check the resource team for cloud tokens and cloud-init scripts
+- *(deployments)* Continue the queue when a deployment cannot be dispatched
+- *(databases)* Import from the source the user selected
+- *(server)* Avoid a burst of patch and Sentinel checks after the upgrade
+- *(compose)* Allow content files outside the resource directory again
+- *(compose)* Allow upgrades with legacy soketi overrides
+- *(sudo)* Do not follow symlinks when chown gives Coolify paths to a non-root SSH user
+- *(ssh)* Keep the command and its secrets out of timeout errors
+- *(backups)* Close backup directories to other users on non-root servers
+- *(dns)* Only create or replace records for the resource's own domains
+- *(api)* Accept numeric resource limits when creating databases
+- *(runners)* Create the runner secret file readable only by its owner
+- *(runners)* Limit stored workflow and job names to the column length
+- *(webhooks)* Use a neutral reply for manual webhooks without a match
+- *(audit)* Remove credentials from URLs before storing audit changes
+- *(cleanup)* Prune audit events in batches and delete old finished runner executions
+- *(servers)* Authorize every Docker images request
+- *(auth)* Build email verification links from the instance URL
+- *(servers)* Change the server role only through its checked flow
+- *(deployments)* Expire missing Horizon jobs after deployment timeout
+- *(deployments)* Include scheduled jobs in progress checks
+- *(logs)* Wrap viewer in a root element for parent re-renders
+- *(domains)* Skip favicons for private network hosts (#12107)
+- *(traffic)* Show geo globe when country data becomes available (#12108)
+- *(compose)* Deploy large Compose files such as Sentry self-hosted
+- *(traffic)* Merge overflow paths and distinguish rows by domain
+- *(cloudflared)* Allow more time for tunnel startup
+- *(deploy)* Keep build helper containers out of --add-host (#11781)
+- *(applications)* Normalize nested base64 custom labels (#11473)
+- *(dev)* Use main branch for default example repository URLs
+- *(forms)* Reduce listbox trigger height to 2rem
+- *(navbar)* Remove truncated page search hint from search button
+- *(terminal)* List lazily loaded containers in the resource terminal picker
+- *(deployment)* Build static buildpack preview images from generated Dockerfile
+- *(ui)* Center card titles when the description is empty
+- *(deployment)* Keep the commit message when a deployment does not clone
+- *(analytics)* Regenerate stored Caddy labels when toggling traffic analytics
+- *(logs)* Fall back to default level filters when saved filters are invalid
+- *(domains)* Stop the DNS poll from flooding the high queue
 
 ### 💼 Other
 
@@ -7360,6 +7818,14 @@ All notable changes to this project will be documented in this file.
 - *(infisical)* Move the sidebar link back to Infrastructure
 - *(ui)* Cleanup css
 - *(ui)* Make settings filter subordinate to the global search
+- *(http)* Remove the TrustHosts middleware that never checked the host
+- *(docker)* Identify containers by resource UUID instead of numeric id
+- *(events)* Broadcast team events to an explicit team
+- *(server-transfer)* Always claim on import and drop remote claim file
+- *(auth)* Remove OAuth re-authentication for destructive actions
+- *(analytics)* Remove application traffic overview card
+- *(traffic)* Remove fallbacks for unreleased Sentinel builds
+- *(forms)* Unify searchable and multi-select listboxes
 
 ### 📚 Documentation
 
@@ -7567,6 +8033,13 @@ All notable changes to this project will be documented in this file.
 - Update changelog
 - Update changelog
 - Update changelog
+- Update changelog
+- List sqlite among the standalone databases
+- *(service)* Add amd_only flag to mattermost
+- *(ai)* Add lessons for browser test output and shared storage
+- *(api)* Document audit events and fix the private key update path
+- *(readme)* Remove PetroSky Cloud from big sponsors
+- *(release)* Replace next branch with per-minor release branches
 
 ### ⚡ Performance
 
@@ -7580,6 +8053,9 @@ All notable changes to this project will be documented in this file.
 - *(breadcrumb)* Optimize queries and simplify navigation to fix OOM (#9048)
 - *(realtime)* Reduce push update churn
 - *(service)* Tune litellm defaults to lower RAM/CPU usage (#10698)
+- *(sentinel)* Cache traffic per minute, skip unsafe keys, batch owner lookups
+- *(docker)* Look up foreign preview owners once per container status check
+- *(databases)* Load Redis-family passwords once for database lists
 
 ### 🎨 Styling
 
@@ -7609,6 +8085,8 @@ All notable changes to this project will be documented in this file.
 - *(dashboard)* Apply surface treatment to analytics KPI cards
 - *(analytics)* Use coollabs-base KPI tiles and fix chevron-down
 - Format the files this branch changed
+- *(ui)* Render danger zone as red card with Permanent badge
+- *(ui)* Use neutral colors for selection checkmarks
 
 ### 🧪 Testing
 
@@ -7666,6 +8144,15 @@ All notable changes to this project will be documented in this file.
 - *(dns)* Sort cached Cloudflare zone names before asserting
 - *(database)* Use App\Models namespaces in import command builder tests
 - *(api)* Assert abilities on all database import routes
+- Add tests for sqlite
+- Clarify onboarding coverage
+- Remove production seeder test
+- Remove tests that do not exercise app code
+- *(api)* Cover the team update audit event
+- Lower the content volume minimum to the current templates
+- *(server)* Fake sleep in the functional recheck tests
+- *(notifications)* Cover a migrated unreachable marker that is older than the throttle window
+- Fix stale and flaky tests
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -8612,6 +9099,32 @@ All notable changes to this project will be documented in this file.
 - Drop the anti-slop PR quality gate in this fork
 - Drop upstream's Docker Hub SHA build
 - Remove sync main to next workflow
+- *(install)* Remove obsolete realtime version output
+- Add manual ARM64 branch image workflow
+- Add manual ARM64 branch image build workflow
+- Remove outdated changelog
+- *(testing-host)* Publish image only to Docker Hub
+- Align control-plane behavior
+- Align account lifecycle
+- Remove unused components and markup-only tests
+- *(service)* Change denoKV casing
+- *(service)* Reorder section of bugsink
+- Remove stray agent worktree submodule reference
+- *(build)* Use rolling tags for main image builds
+- Drop the activity command cleanup migration
+- Remove the manual ARM64 branch workflow
+- *(release)* Set the version to 4.4.0
+- *(ai)* Upgrade Laravel Boost and regenerate agent skills
+- *(horizon)* Lower job trim times
+- *(cdn)* Remove BunnyCDN sync and rename sync:bunny to sync:cdn
+- *(nightly)* Sync nightly install and upgrade scripts with the root scripts
+- *(scripts)* Handle a missing coolify-realtime container in the backup restore VM script
+- *(nightly)* Point v4 version in nightly versions.json to main
+- *(versions)* Bump sentinel to 1.0.2 and pin sentinel-host image
+- *(versions)* Bump coolify to 4.4.2
+- *(release)* Bump Coolify version to 4.4.3
+- *(release)* Publish multiarch dev images for release branches
+- *(release)* Sync main into every release/v* branch
 
 ### ◀️ Revert
 
@@ -8628,5 +9141,7 @@ All notable changes to this project will be documented in this file.
 - Encrypting mount and fs_path
 - *(parser)* Enhance FQDN generation logic for services and applications
 - *(dev)* Drop minio/mc registry changes (fixed upstream)
+- Undo the app changes from the test clean-up
+- *(scheduler)* Go back to the cron scan and keep the reliability fixes
 
 <!-- generated by git-cliff -->
