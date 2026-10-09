@@ -8040,6 +8040,7 @@ All notable changes to this project will be documented in this file.
 - *(api)* Document audit events and fix the private key update path
 - *(readme)* Remove PetroSky Cloud from big sponsors
 - *(release)* Replace next branch with per-minor release branches
+- Update changelog
 
 ### ⚡ Performance
 
@@ -9125,6 +9126,7 @@ All notable changes to this project will be documented in this file.
 - *(release)* Bump Coolify version to 4.4.3
 - *(release)* Publish multiarch dev images for release branches
 - *(release)* Sync main into every release/v* branch
+- Run every fork-specific test suite on pull requests
 
 ### ◀️ Revert
 
