@@ -71,11 +71,14 @@ function create_standalone_redis($environment_id, StandaloneDocker|SwarmDocker $
             'is_shared' => false,
         ]);
 
-        EnvironmentVariable::create([
+        // firstOrCreate: creating REDIS_PASSWORD loads this Redis, and its
+        // redis_username accessor already creates REDIS_USERNAME when missing.
+        EnvironmentVariable::firstOrCreate([
             'key' => 'REDIS_USERNAME',
-            'value' => 'default',
             'resourceable_type' => StandaloneRedis::class,
             'resourceable_id' => $database->id,
+        ], [
+            'value' => 'default',
             'is_shared' => false,
         ]);
     });

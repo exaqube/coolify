@@ -37,6 +37,7 @@ function updateCoolifyTestCreateRootServerAndSettings(array $settings = []): voi
         'update_check_frequency' => '0 * * * *',
     ], $settings));
     Once::flush();
+    config(['constants.coolify.upstream_updates' => true]);
 }
 
 afterEach(function () {
@@ -316,4 +317,15 @@ it('prevents downgrade even with manual update', function () {
         expect($e->getMessage())->toContain('4.0.10');
         expect($e->getMessage())->toContain('4.0.0');
     }
+});
+
+it('never runs the upstream upgrade script unless upstream updates are enabled', function () {
+    updateCoolifyTestCreateRootServerAndSettings();
+    config(['constants.coolify.upstream_updates' => false, 'constants.coolify.version' => '4.0.0']);
+    Http::fake(['*' => Http::response(['coolify' => ['v4' => ['version' => '9.9.9']]])]);
+
+    UpdateCoolify::run(manual_update: true);
+
+    expect(Activity::query()->count())->toBe(0);
+    Http::assertNothingSent();
 });
