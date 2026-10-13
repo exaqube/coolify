@@ -1,11 +1,15 @@
 <?php
 
+use App\Jobs\InfisicalAdoptJob;
+use App\Jobs\InfisicalPullJob;
 use App\Models\EnvironmentVariable;
 use App\Models\InfisicalConnection;
+use App\Models\Project;
 use App\Models\SharedEnvironmentVariable;
 use App\Models\Team;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 
 uses(RefreshDatabase::class);
 
@@ -70,4 +74,17 @@ it('marks variables as infisical managed on both variable tables', function () {
         ->and($resourceVar->fresh()->infisical_path)->toBe('/shop-api/api-server/')
         ->and($sharedVar->fresh()->is_infisical_managed)->toBeTrue()
         ->and($sharedVar->fresh()->infisical_path)->toBe('/shop-api/');
+});
+
+test('creating a project syncs the team with Infisical only when a connection is enabled', function () {
+    Bus::fake();
+
+    $team = Team::factory()->create();
+    Project::factory()->create(['team_id' => $team->id]);
+    Bus::assertNothingDispatched();
+
+    InfisicalConnection::factory()->create(['team_id' => $team->id, 'is_enabled' => true]);
+    Project::factory()->create(['team_id' => $team->id]);
+
+    Bus::assertChained([InfisicalAdoptJob::class, InfisicalPullJob::class]);
 });

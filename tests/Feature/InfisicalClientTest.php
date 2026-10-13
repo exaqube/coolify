@@ -292,3 +292,30 @@ it('treats an unrecognised 404 as a real failure rather than assuming empty', fu
         ->fetchSecrets('proj', 'production', '/'))
         ->toThrow(InfisicalApiException::class);
 });
+
+it('reads the organization id from the project object', function () {
+    Http::fake([
+        '*/api/v1/auth/universal-auth/login' => Http::response(['accessToken' => 'tok']),
+        '*/api/v1/workspace/proj' => Http::response(['workspace' => ['orgId' => 'org-1']]),
+    ]);
+
+    expect((new InfisicalClient(InfisicalConnection::factory()->create()))->organizationId('proj'))->toBe('org-1');
+});
+
+it('deep links to the org-scoped project page once the org is known', function () {
+    $connection = InfisicalConnection::factory()->create([
+        'host' => 'https://infisical.test',
+        'infisical_project_id' => 'proj',
+    ]);
+
+    expect($connection->secretsUrl())->toBe('https://infisical.test/project/proj/secrets');
+
+    $connection->update(['infisical_org_id' => 'org-1']);
+
+    expect($connection->secretsUrl())->toBe('https://infisical.test/organizations/org-1/projects/secret-management/proj/overview')
+        ->and($connection->secretsUrl('prod'))->toBe('https://infisical.test/organizations/org-1/projects/secret-management/proj/secrets/prod');
+
+    $connection->update(['infisical_project_id' => 'other']);
+
+    expect($connection->infisical_org_id)->toBeNull();
+});

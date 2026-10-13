@@ -22,6 +22,7 @@ class InfisicalConnection extends BaseModel
         'client_id',
         'client_secret',
         'infisical_project_id',
+        'infisical_org_id',
         'is_enabled',
         'adopted_at',
         'last_synced_at',
@@ -54,6 +55,10 @@ class InfisicalConnection extends BaseModel
             if ($connection->host !== null) {
                 $connection->host = rtrim(trim($connection->host), '/');
             }
+            // A different project may live in a different org; relearn it on the next sync.
+            if ($connection->exists && $connection->isDirty(['host', 'infisical_project_id']) && ! $connection->isDirty('infisical_org_id')) {
+                $connection->infisical_org_id = null;
+            }
         });
     }
 
@@ -83,9 +88,19 @@ class InfisicalConnection extends BaseModel
             return null;
         }
 
-        $url = rtrim($this->host, '/')."/project/{$this->infisical_project_id}/secrets";
+        $host = rtrim($this->host, '/');
 
-        return blank($environmentSlug) ? $url : $url."/{$environmentSlug}";
+        // Current Infisical routes are org-scoped. Until the first sync has
+        // learned the org id, fall back to the legacy route.
+        if (blank($this->infisical_org_id)) {
+            $url = "{$host}/project/{$this->infisical_project_id}/secrets";
+
+            return blank($environmentSlug) ? $url : $url."/{$environmentSlug}";
+        }
+
+        $base = "{$host}/organizations/{$this->infisical_org_id}/projects/secret-management/{$this->infisical_project_id}";
+
+        return blank($environmentSlug) ? $base.'/overview' : $base."/secrets/{$environmentSlug}";
     }
 
     /**

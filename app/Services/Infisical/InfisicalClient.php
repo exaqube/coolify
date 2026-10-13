@@ -85,6 +85,16 @@ class InfisicalClient
     }
 
     /**
+     * The organization that owns the project, needed for UI deep links.
+     *
+     * @throws InfisicalApiException
+     */
+    public function organizationId(string $projectId): ?string
+    {
+        return $this->send('get', "/api/v1/workspace/{$projectId}", [], 'read project')->json('workspace.orgId');
+    }
+
+    /**
      * Every environment of a project as slug => id.
      *
      * listEnvironmentSlugs() is kept for callers that only need the slugs;
