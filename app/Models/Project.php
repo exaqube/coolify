@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Jobs\InfisicalAdoptJob;
+use App\Jobs\InfisicalPullJob;
 use App\Traits\Auditable;
 use App\Traits\ClearsGlobalSearchCache;
 use App\Traits\HasSafeStringAttribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Bus;
 use OpenApi\Attributes as OA;
 
 #[OA\Schema(
@@ -62,6 +65,10 @@ class Project extends BaseModel
                 'project_id' => $project->id,
                 'uuid' => new_public_id(),
             ]);
+            // Same as "Sync Now", queued so Infisical can never block project creation.
+            if ($connection = InfisicalConnection::enabledForTeam($project->team_id)) {
+                rescue(fn () => Bus::chain([new InfisicalAdoptJob($connection), new InfisicalPullJob($connection)])->dispatch(), report: false);
+            }
         });
         static::deleting(function ($project) {
             foreach ($project->environments()->get() as $environment) {

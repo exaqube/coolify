@@ -40,6 +40,7 @@ class PullTeamSecrets
             'last_synced_at' => now(),
             'last_sync_status' => InfisicalConnection::STATUS_SUCCESS,
             'last_sync_error' => $this->describeDegradations($result),
+            'infisical_org_id' => $connection->infisical_org_id ?: $this->organizationId($connection),
         ])->save();
 
         return $result;
@@ -346,6 +347,18 @@ class PullTeamSecrets
         $client->upsertSecrets($projectId, $bucket['environment'], $bucket['path'], $missing);
 
         return count($missing);
+    }
+
+    /**
+     * Only feeds the "Open in Infisical" link, so it must never fail a sync.
+     */
+    private function organizationId(InfisicalConnection $connection): ?string
+    {
+        try {
+            return $connection->client()->organizationId($connection->infisical_project_id);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
