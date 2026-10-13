@@ -6599,6 +6599,7 @@ All notable changes to this project will be documented in this file.
 - *(analytics)* Regenerate stored Caddy labels when toggling traffic analytics
 - *(logs)* Fall back to default level filters when saved filters are invalid
 - *(domains)* Stop the DNS poll from flooding the high queue
+- *(infisical)* Org-scoped deep link and sync on project creation
 
 ### 💼 Other
 
@@ -8040,6 +8041,7 @@ All notable changes to this project will be documented in this file.
 - *(api)* Document audit events and fix the private key update path
 - *(readme)* Remove PetroSky Cloud from big sponsors
 - *(release)* Replace next branch with per-minor release branches
+- Update changelog
 - Update changelog
 
 ### ⚡ Performance
