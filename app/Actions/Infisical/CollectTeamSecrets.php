@@ -182,9 +182,21 @@ class CollectTeamSecrets
             }
         };
 
+        // An empty row stays in `rows`, so a pull can fill it, but never enters
+        // `secrets`. parse() creates every `${VAR}` in a compose file as an
+        // empty row, and pushing that blank would overwrite the real value in
+        // Infisical. Last-wins still holds: a later empty row drops an earlier
+        // value from `secrets` rather than leaving the two maps out of step.
         $add = function (string $envSlug, string $path, Model $row) use (&$buckets): void {
             $id = "{$envSlug}|{$path}";
-            $buckets[$id]['secrets'][$row->key] = (string) $row->value;
+            $value = (string) $row->value;
+
+            if ($value === '') {
+                unset($buckets[$id]['secrets'][$row->key]);
+            } else {
+                $buckets[$id]['secrets'][$row->key] = $value;
+            }
+
             $buckets[$id]['rows'][$row->key] = $row;
         };
 
