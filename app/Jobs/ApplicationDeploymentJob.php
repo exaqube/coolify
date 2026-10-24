@@ -18,7 +18,6 @@ use App\Models\ApplicationPreview;
 use App\Models\EnvironmentVariable;
 use App\Models\GithubApp;
 use App\Models\GitlabApp;
-use App\Models\InfisicalConnection;
 use App\Models\Server;
 use App\Models\StandaloneDocker;
 use App\Models\SwarmDocker;
@@ -1564,37 +1563,10 @@ class ApplicationDeploymentJob implements ShouldBeEncrypted, ShouldQueue
 
     /**
      * Pull this application's Infisical folders fresh before anything reads them.
-     *
-     * Scoped, NOT a whole-team walk: PullTeamSecrets::run() issues one HTTP
-     * round trip per bucket, and a realistic team has well over a hundred of
-     * them. A deployment only inherits '/', '/{project}/' and
-     * '/{project}/{resource}/' in its own environment slug, so only those are
-     * fetched.
-     *
-     * Called directly rather than queued or through remote_process(), and the
-     * exception is deliberately NOT caught: per the spec a connection failure
-     * during a deploy fails the deploy instead of silently shipping stale
-     * values.
      */
     private function pullInfisicalSecrets(): void
     {
-        $teamId = $this->application->environment?->project?->team_id;
-
-        if ($teamId === null) {
-            return;
-        }
-
-        $connection = InfisicalConnection::query()
-            ->where('team_id', $teamId)
-            ->where('is_enabled', true)
-            ->whereNotNull('adopted_at')
-            ->first();
-
-        if ($connection === null) {
-            return;
-        }
-
-        PullTeamSecrets::forApplication($connection, $this->application);
+        PullTeamSecrets::beforeDeploy($this->application);
     }
 
     /**

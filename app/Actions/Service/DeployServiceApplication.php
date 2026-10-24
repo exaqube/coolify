@@ -2,6 +2,7 @@
 
 namespace App\Actions\Service;
 
+use App\Actions\Infisical\PullTeamSecrets;
 use App\Actions\Shared\EnsureContentFilesOnServer;
 use App\Models\ServiceApplication;
 use App\Models\ServiceDatabase;
@@ -20,6 +21,7 @@ class DeployServiceApplication
         $composeServiceName = $serviceApplication->name;
 
         $service->parse();
+        PullTeamSecrets::beforeDeploy($service);
         $service->saveComposeConfigs();
         $service->isConfigurationChanged(save: true);
 

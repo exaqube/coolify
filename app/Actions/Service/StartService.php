@@ -2,6 +2,7 @@
 
 namespace App\Actions\Service;
 
+use App\Actions\Infisical\PullTeamSecrets;
 use App\Actions\Shared\EnsureContentFilesOnServer;
 use App\Models\LocalFileVolume;
 use App\Models\Service;
@@ -23,6 +24,9 @@ class StartService
     public function handle(Service $service, bool $pullLatestImages = false, bool $stopBeforeStart = false)
     {
         $service->parse();
+        // Pull Infisical after parse() so the rows it just created are filled too, and before
+        // stopping so an Infisical failure leaves the service running.
+        PullTeamSecrets::beforeDeploy($service);
         // Fetch remote secrets before stopping: if the secret manager fails, the service keeps running.
         // saveComposeConfigs() below reuses the fetched secrets.
         $service->ensureRemoteSecretsResolvable($service->environment_variables()->get());
