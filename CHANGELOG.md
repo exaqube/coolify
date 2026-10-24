@@ -6603,6 +6603,7 @@ All notable changes to this project will be documented in this file.
 - *(infisical)* Never push empty values over Infisical
 - *(security)* Pin patched PHP 8.4.27 for PHP2Shell (CVE-2026-109618/109619)
 - *(infisical)* Pull secrets before starting compose services
+- *(infisical)* Only create keys Infisical lacks, never overwrite
 
 ### 💼 Other
 
@@ -8044,6 +8045,7 @@ All notable changes to this project will be documented in this file.
 - *(api)* Document audit events and fix the private key update path
 - *(readme)* Remove PetroSky Cloud from big sponsors
 - *(release)* Replace next branch with per-minor release branches
+- Update changelog
 - Update changelog
 - Update changelog
 - Update changelog
