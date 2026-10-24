@@ -85,6 +85,36 @@ class PullTeamSecrets
     }
 
     /**
+     * Deploy-time pull: fetch the resource's folders fresh if its team has an
+     * adopted connection, and do nothing otherwise.
+     *
+     * Every deploy and start path calls this, applications and compose
+     * services alike, so an edit made in Infisical takes effect on the next
+     * deploy without waiting for the scheduled sync. A connection failure is
+     * deliberately NOT caught: failing the deploy beats shipping stale values.
+     *
+     * @throws InfisicalApiException
+     */
+    public static function beforeDeploy(Model $resource): void
+    {
+        $teamId = $resource->environment?->project?->team_id;
+
+        if ($teamId === null) {
+            return;
+        }
+
+        $connection = InfisicalConnection::query()
+            ->where('team_id', $teamId)
+            ->where('is_enabled', true)
+            ->whereNotNull('adopted_at')
+            ->first();
+
+        if ($connection !== null) {
+            static::forResource($connection, $resource);
+        }
+    }
+
+    /**
      * Alias kept because a deployment is always an Application. Present so the
      * deploy call site reads as the plan describes it.
      *
