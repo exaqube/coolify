@@ -3,7 +3,9 @@
 namespace App\Actions\Infisical;
 
 use App\Models\InfisicalConnection;
+use App\Services\Infisical\FetchedSecrets;
 use App\Services\Infisical\InfisicalApiException;
+use App\Services\Infisical\InfisicalClient;
 use App\Services\Infisical\InfisicalLock;
 use App\Services\Infisical\InfisicalPath;
 use Illuminate\Database\Eloquent\Model;
@@ -181,7 +183,7 @@ class PullTeamSecrets
             $hidden = array_merge($hidden, $fetched->hiddenKeys);
 
             if ($reconcile) {
-                $pushed += $this->pushMissing($client, $projectId, $bucket, $fetched);
+                $pushed += static::pushMissing($client, $projectId, $bucket, $fetched);
             }
 
             if ($fetched->values === []) {
@@ -345,23 +347,36 @@ class PullTeamSecrets
     }
 
     /**
-     * Push only the keys Coolify holds that Infisical does not.
+     * Push only the keys Coolify holds that Infisical does not, then mark every
+     * row Infisical now holds as Infisical-managed.
      *
-     * Deliberately NOT an upsert of everything. Infisical is the source of
-     * truth once adopted, so re-pushing a key that already exists there would
-     * overwrite an edit made in Infisical with Coolify's older copy - silent
-     * data loss on every scheduled run.
+     * This is the ONLY upward write. Adoption, the per-folder push job and the
+     * scheduled sync all go through it, so Coolify can create a key in
+     * Infisical but can never overwrite one. Infisical is the source of truth
+     * once adopted, so re-pushing a key that already exists there would
+     * overwrite an edit made in Infisical with Coolify's older copy.
+     *
+     * A row already stamped as managed for THIS folder was in Infisical before.
+     * If Infisical no longer has it, somebody deleted it there, so it is not
+     * pushed back. Without this, deleting a leaked credential in Infisical was
+     * undone by the next sync. The path is part of the test so a renamed
+     * project or resource, which moves the folder, is still pushed.
+     * `$restoreDeleted` turns that off for adoption, which "Sync now" runs as
+     * the explicit recovery path for an Infisical that lost its secrets.
+     *
+     * Credential columns have no row to carry the stamp, so a database
+     * password deleted in Infisical is still pushed back.
      *
      * Verified against a live instance: mode=ignore does NOT give
      * create-if-absent semantics on the self-hosted API (it updates existing
      * keys and skips new ones), so the missing set has to be computed here
-     * from the read we already performed.
+     * from a read.
      *
      * @param  array<string, mixed>  $bucket
      *
      * @throws InfisicalApiException
      */
-    private function pushMissing($client, string $projectId, array $bucket, $fetched): int
+    public static function pushMissing(InfisicalClient $client, string $projectId, array $bucket, FetchedSecrets $fetched, bool $restoreDeleted = false): int
     {
         $missing = array_diff_key($bucket['secrets'], $fetched->values);
 
@@ -370,11 +385,35 @@ class PullTeamSecrets
             unset($missing[$hiddenKey]);
         }
 
-        if ($missing === []) {
-            return 0;
+        foreach (array_keys($restoreDeleted ? [] : $missing) as $key) {
+            $row = $bucket['rows'][$key] ?? null;
+
+            if ($row !== null && $row->is_infisical_managed && $row->infisical_path === $bucket['path']) {
+                unset($missing[$key]);
+            }
         }
 
         $client->upsertSecrets($projectId, $bucket['environment'], $bucket['path'], $missing);
+
+        // Stamp only what Infisical actually holds. An empty row was never
+        // pushed, and stamping it would stop its first real value from being
+        // pushed. These saves change only the two provenance columns, so the
+        // saved hook's "did key or value move" guard stops them from queueing
+        // another push.
+        $held = array_flip([...array_keys($fetched->values), ...$fetched->hiddenKeys, ...array_keys($missing)]);
+
+        InfisicalLock::asSystem(function () use ($bucket, $held): void {
+            foreach ($bucket['rows'] as $key => $row) {
+                if (! isset($held[$key])) {
+                    continue;
+                }
+
+                $row->forceFill([
+                    'is_infisical_managed' => true,
+                    'infisical_path' => $bucket['path'],
+                ])->save();
+            }
+        });
 
         return count($missing);
     }

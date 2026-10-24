@@ -79,8 +79,8 @@ class Index extends Component
      * Push everything up, then pull everything down, reporting what moved.
      *
      * Runs inline rather than queued so the screen can report real counts.
-     * Both halves are idempotent: adoption upserts, and the pull is additive
-     * and update-only.
+     * Both halves are idempotent: adoption only creates keys Infisical lacks,
+     * and the pull is additive and update-only.
      *
      * This is also the recovery path. Adoption only runs automatically on the
      * first enable, so if secrets are removed on the Infisical side afterwards

@@ -3,7 +3,6 @@
 namespace App\Actions\Infisical;
 
 use App\Models\InfisicalConnection;
-use App\Services\Infisical\InfisicalLock;
 use Lorisleiva\Actions\Concerns\AsAction;
 
 class AdoptTeamSecretsIntoInfisical
@@ -11,9 +10,11 @@ class AdoptTeamSecretsIntoInfisical
     use AsAction;
 
     /**
-     * Push every existing Coolify variable in the team up into Infisical, once.
+     * Push every Coolify variable Infisical does not already hold, once.
      *
-     * Idempotent: the upsert endpoint tolerates re-running, folder creation
+     * Never overwrites: a key Infisical already has keeps its Infisical value.
+     *
+     * Idempotent: a re-run pushes only what is still missing, folder creation
      * tolerates an already-exists response, and environment creation is skipped
      * when it already exists. A partial failure can therefore be retried
      * safely.
@@ -56,20 +57,18 @@ class AdoptTeamSecretsIntoInfisical
             }
 
             $client->ensureFolderPath($projectId, $bucket['environment'], $bucket['path']);
-            $client->upsertSecrets($projectId, $bucket['environment'], $bucket['path'], $bucket['secrets']);
 
-            $pushed += count($bucket['secrets']);
-
-            // Mark provenance. These are system writes: the lock is already
-            // armed by the time adoption runs.
-            InfisicalLock::asSystem(function () use ($bucket): void {
-                foreach ($bucket['rows'] as $row) {
-                    $row->forceFill([
-                        'is_infisical_managed' => true,
-                        'infisical_path' => $bucket['path'],
-                    ])->save();
-                }
-            });
+            // Create-if-absent: adopting into a project that already holds
+            // values must not overwrite them with Coolify's copies. Keys
+            // deleted in Infisical ARE restored: "Sync now" runs adoption as
+            // the recovery path for exactly that.
+            $pushed += PullTeamSecrets::pushMissing(
+                $client,
+                $projectId,
+                $bucket,
+                $client->fetchSecrets($projectId, $bucket['environment'], $bucket['path']),
+                restoreDeleted: true,
+            );
         }
 
         $connection->forceFill([

@@ -3,9 +3,9 @@
 namespace App\Jobs;
 
 use App\Actions\Infisical\CollectTeamSecrets;
+use App\Actions\Infisical\PullTeamSecrets;
 use App\Models\InfisicalConnection;
 use App\Services\Infisical\InfisicalApiException;
-use App\Services\Infisical\InfisicalLock;
 use App\Services\Infisical\InfisicalPathCollisionException;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
@@ -18,8 +18,8 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
 /**
- * One upsert of one Infisical folder, carrying everything Coolify currently
- * holds for it.
+ * One create-if-absent push of one Infisical folder: every key Coolify holds
+ * for it that Infisical does not.
  *
  * The unit of work is the FOLDER, not the key: `parse()` writes hundreds of
  * generated rows during a single deploy and a per-key push would add hundreds
@@ -92,20 +92,10 @@ class InfisicalPushJob implements ShouldBeEncrypted, ShouldBeUniqueUntilProcessi
             $projectId = $this->infisicalConnection->infisical_project_id;
 
             $client->ensureFolderPath($projectId, $bucket['environment'], $bucket['path']);
-            $client->upsertSecrets($projectId, $bucket['environment'], $bucket['path'], $bucket['secrets']);
 
-            // Mark provenance. These are system writes. They change only the
-            // two provenance columns, so the saved hook's "did key or value
-            // move" guard stops them from queueing another push — without that
-            // this stamp would re-enter here forever.
-            InfisicalLock::asSystem(function () use ($bucket): void {
-                foreach ($bucket['rows'] as $row) {
-                    $row->forceFill([
-                        'is_infisical_managed' => true,
-                        'infisical_path' => $bucket['path'],
-                    ])->save();
-                }
-            });
+            // Create-if-absent: the folder in Infisical may hold edits Coolify
+            // has not pulled yet, and an upsert would overwrite them.
+            PullTeamSecrets::pushMissing($client, $projectId, $bucket, $client->fetchSecrets($projectId, $bucket['environment'], $bucket['path']));
         } catch (InfisicalApiException|InfisicalPathCollisionException $e) {
             // A failed push must never break the deploy or the save that
             // triggered it. Adoption and the scheduled pull surface the same
