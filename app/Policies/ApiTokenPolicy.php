@@ -64,6 +64,15 @@ class ApiTokenPolicy
     }
 
     /**
+     * Platform tokens (instance-level team provisioning) are limited to admins and owners
+     * of the root team, created while the root team is the session team.
+     */
+    public function usePlatformPermissions(User $user): bool
+    {
+        return $user->currentTeam()?->id === 0 && $user->isAdminOfTeam(0);
+    }
+
+    /**
      * Determine whether the user can use write permissions for API tokens.
      */
     public function useWritePermissions(User $user): bool

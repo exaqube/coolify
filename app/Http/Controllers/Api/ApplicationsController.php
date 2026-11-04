@@ -1693,10 +1693,7 @@ class ApplicationsController extends Controller
                 return $return;
             }
             $githubApp = GithubApp::where('uuid', $githubAppUuid)
-                ->where(function ($query) use ($teamId) {
-                    $query->where('team_id', $teamId)
-                        ->orWhere('is_system_wide', true);
-                })
+                ->usableByTeam($teamId)
                 ->first();
             if (! $githubApp) {
                 return response()->json(['message' => 'Github App not found.'], 404);

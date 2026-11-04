@@ -152,9 +152,11 @@ class Source extends Component
             $allowedSourceTypes = [GithubApp::class, GitlabApp::class];
             abort_unless(in_array($sourceType, $allowedSourceTypes, true), 404);
             $teamId = $this->application->team()->id;
-            $source = $sourceType::query()
-                ->where(fn ($query) => $query->where('team_id', $teamId)->orWhere('is_system_wide', true))
-                ->findOrFail($sourceId);
+            $source = $sourceType === GithubApp::class
+                ? GithubApp::query()->usableByTeam($teamId)->findOrFail($sourceId)
+                : $sourceType::query()
+                    ->where(fn ($query) => $query->where('team_id', $teamId)->orWhere('is_system_wide', true))
+                    ->findOrFail($sourceId);
             $this->application->update([
                 'source_id' => $source->id,
                 'source_type' => $sourceType,

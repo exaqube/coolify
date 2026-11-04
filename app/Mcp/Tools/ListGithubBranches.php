@@ -59,9 +59,7 @@ class ListGithubBranches extends Tool
 
         $githubApp = GithubApp::query()
             ->where('uuid', $appUuid)
-            ->where(function ($q) use ($teamId) {
-                $q->where('team_id', $teamId)->orWhere('is_system_wide', true);
-            })
+            ->usableByTeam($teamId)
             ->first();
 
         if (! $githubApp) {

@@ -12,6 +12,13 @@
                 {{ Str::upper(Str::substr($member->name ?: $member->email, 0, 1)) }}
             </div>
             <span class="truncate text-[13px] font-medium text-black dark:text-fg">{{ $member->name }}</span>
+            @if ($member->is_service_account)
+                <span
+                    class="rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600 dark:bg-white/[0.06] dark:text-fg-dim"
+                    title="Owns this team's platform API tokens. Cannot sign in.">
+                    Service account
+                </span>
+            @endif
             @if ($member->id === Auth::id())
                 <span
                     class="rounded-full bg-coollabs/10 px-1.5 py-0.5 text-[10px] font-medium text-coollabs dark:bg-warning/15 dark:text-warning">

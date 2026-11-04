@@ -73,6 +73,7 @@ class User extends Authenticatable implements SendsEmail
         'current_team_id' => 'integer',
         'email_verified_at' => 'datetime',
         'force_password_reset' => 'boolean',
+        'is_service_account' => 'boolean',
         'show_boarding' => 'boolean',
         'email_change_code_expires_at' => 'datetime',
     ];
@@ -98,6 +99,11 @@ class User extends Authenticatable implements SendsEmail
         parent::boot();
 
         static::created(function (User $user) {
+            // Platform service accounts belong to exactly one team and get no personal team.
+            if ($user->is_service_account) {
+                return;
+            }
+
             $team = [
                 'name' => $user->name."'s Team",
                 'personal_team' => true,
@@ -261,7 +267,10 @@ class User extends Authenticatable implements SendsEmail
         return $new_team;
     }
 
-    public function createToken(string $name, array $abilities = ['read'], ?DateTimeInterface $expiresAt = null)
+    /**
+     * @param  int|null  $teamId  The token's team; defaults to the session team.
+     */
+    public function createToken(string $name, array $abilities = ['read'], ?DateTimeInterface $expiresAt = null, ?int $teamId = null)
     {
         $plainTextToken = sprintf(
             '%s%s%s',
@@ -275,7 +284,7 @@ class User extends Authenticatable implements SendsEmail
             'token' => hash('sha256', $plainTextToken),
             'abilities' => $abilities,
             'expires_at' => $expiresAt,
-            'team_id' => session('currentTeam')->id,
+            'team_id' => $teamId ?? session('currentTeam')->id,
         ]);
 
         return new NewAccessToken($token, $token->getKey().'|'.$plainTextToken);
@@ -284,6 +293,27 @@ class User extends Authenticatable implements SendsEmail
     public function teams()
     {
         return $this->belongsToMany(Team::class)->withPivot('role');
+    }
+
+    /**
+     * Create the non-login service account that owns a platform team's API tokens.
+     */
+    public static function createServiceAccount(Team $team): self
+    {
+        $email = "svc+{$team->uuid}@platform.local";
+        // Reuse the account if it was removed from the team in the UI; the email is unique.
+        $user = self::query()->where('email', $email)->where('is_service_account', true)->first()
+            ?? (new self)->forceFill([
+                'name' => 'Platform service account',
+                'email' => $email,
+                'password' => null,
+                'is_service_account' => true,
+                'email_verified_at' => now(),
+            ]);
+        $user->save();
+        $user->teams()->syncWithoutDetaching([$team->id => ['role' => 'admin']]);
+
+        return $user;
     }
 
     public function changelogReads()

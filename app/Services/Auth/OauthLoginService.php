@@ -25,9 +25,18 @@ class OauthLoginService
             throw new HttpException(403, 'OAuth provider did not return a valid email address');
         }
 
+        // Platform service accounts never sign in; refuse before any identity is linked to one.
+        if (User::query()->where('email', $email)->where('is_service_account', true)->exists()) {
+            throw new HttpException(403, 'This account cannot sign in.');
+        }
+
         $user = $provider === 'oidc'
             ? $this->resolveOidcUser($oauthUser, $oauthSetting, $email)
             : $this->resolveOauthUser($oauthUser, $oauthSetting, $email);
+
+        if ($user->is_service_account) {
+            throw new HttpException(403, 'This account cannot sign in.');
+        }
 
         // Choose the team like the password login: restore the last active team,
         // or the sole team. A multi-team user without a valid stored choice gets

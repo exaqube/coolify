@@ -68,6 +68,7 @@ class Team extends Model implements SendsDiscord, SendsEmail, SendsMicrosoftTeam
 
     protected $casts = [
         'personal_team' => 'boolean',
+        'is_platform_managed' => 'boolean',
         'is_mcp_server_enabled' => 'boolean',
         'is_build_server_fallback_enabled' => 'boolean',
     ];
@@ -238,7 +239,7 @@ class Team extends Model implements SendsDiscord, SendsEmail, SendsMicrosoftTeam
 
     public function getRecipients(): array
     {
-        $recipients = $this->members()->pluck('email')->toArray();
+        $recipients = $this->members()->where('is_service_account', false)->pluck('email')->toArray();
         $validatedEmails = array_filter($recipients, function ($email) {
             return filter_var($email, FILTER_VALIDATE_EMAIL);
         });
@@ -394,12 +395,7 @@ class Team extends Model implements SendsDiscord, SendsEmail, SendsMicrosoftTeam
     public function sources()
     {
         $sources = collect([]);
-        $github_apps = GithubApp::where(function ($query) {
-            $query->where(function ($q) {
-                $q->where('team_id', $this->id)
-                    ->orWhere('is_system_wide', true);
-            })->where('is_public', false);
-        })->get();
+        $github_apps = GithubApp::usableByTeam($this->id)->where('is_public', false)->get();
 
         $gitlab_apps = GitlabApp::where(function ($query) {
             $query->where(function ($q) {
@@ -409,6 +405,14 @@ class Team extends Model implements SendsDiscord, SendsEmail, SendsMicrosoftTeam
         })->get();
 
         return $sources->merge($github_apps)->merge($gitlab_apps);
+    }
+
+    /**
+     * GitHub Apps of other teams shared with this team through the platform API.
+     */
+    public function sharedGithubApps()
+    {
+        return $this->belongsToMany(GithubApp::class, 'github_app_team')->withTimestamps();
     }
 
     public function s3s()

@@ -7524,6 +7524,9 @@ paths:
                 is_system_wide:
                   type: boolean
                   description: 'Is system wide (non-cloud instances only)'
+                is_shareable:
+                  type: boolean
+                  description: 'Whether the platform API may share this app with other teams. Owning team admins only.'
               type: object
       responses:
         '200':
@@ -8298,6 +8301,43 @@ paths:
       security:
         -
           bearerAuth: []
+  /notifications/microsoft-teams:
+    get:
+      tags:
+        - Notifications
+      summary: 'Get Microsoft Teams notification settings'
+      description: 'Get the current team Microsoft Teams notification settings. Encrypted secrets are only returned when the token has `read:sensitive` (or `root`) and the user is a team admin/owner.'
+      operationId: get-current-team-microsoft-teams-notifications
+      responses:
+        '200':
+          description: 'Microsoft Teams notification settings.'
+        '401':
+          $ref: '#/components/responses/401'
+        '400':
+          $ref: '#/components/responses/400'
+      security:
+        -
+          bearerAuth: []
+    patch:
+      tags:
+        - Notifications
+      summary: 'Update Microsoft Teams notification settings'
+      description: 'Update the current team Microsoft Teams notification settings.'
+      operationId: update-current-team-microsoft-teams-notifications
+      responses:
+        '200':
+          description: 'Updated Microsoft Teams notification settings.'
+        '401':
+          $ref: '#/components/responses/401'
+        '400':
+          $ref: '#/components/responses/400'
+        '403':
+          description: Forbidden.
+        '422':
+          $ref: '#/components/responses/422'
+      security:
+        -
+          bearerAuth: []
   /notifications/telegram:
     get:
       tags:
@@ -8562,6 +8602,343 @@ paths:
           $ref: '#/components/responses/401'
         '400':
           $ref: '#/components/responses/400'
+  /platform/teams:
+    get:
+      tags:
+        - Platform
+      summary: 'List teams'
+      description: 'List the platform-managed teams and the root team. Requires a `platform` token.'
+      operationId: platform-list-teams
+      responses:
+        '200':
+          description: Teams.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlatformTeam'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          description: 'Not a platform token.'
+      security:
+        -
+          bearerAuth: []
+    post:
+      tags:
+        - Platform
+      summary: 'Create team'
+      description: 'Create a platform-managed team with its service account. Idempotent by name: an existing platform-managed team with the same name is returned with 200. A name used by any other team returns 409. Requires a `platform` token.'
+      operationId: platform-create-team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: [string, 'null']
+              type: object
+      responses:
+        '201':
+          description: 'Team created.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformTeam'
+        '200':
+          description: 'Platform-managed team with this name already exists.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformTeam'
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          description: 'Not a platform token.'
+        '409':
+          description: 'A team that is not platform-managed already uses this name.'
+        '422':
+          $ref: '#/components/responses/422'
+      security:
+        -
+          bearerAuth: []
+  '/platform/teams/{id}':
+    get:
+      tags:
+        - Platform
+      summary: 'Get team'
+      description: 'Get a platform-managed team (or the root team) with its service-account tokens and shared GitHub Apps. Token values are never returned. Requires a `platform` token.'
+      operationId: platform-get-team
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Team.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformTeam'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          description: 'Not a platform token.'
+        '404':
+          $ref: '#/components/responses/404'
+      security:
+        -
+          bearerAuth: []
+    delete:
+      tags:
+        - Platform
+      summary: 'Delete team'
+      description: 'Delete an empty platform-managed team (no projects, servers or own sources), its service account and its tokens. Requires a `platform` token.'
+      operationId: platform-delete-team
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 'Team deleted.'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          description: 'Not a platform token.'
+        '404':
+          $ref: '#/components/responses/404'
+        '409':
+          description: 'The team still has resources.'
+      security:
+        -
+          bearerAuth: []
+  '/platform/teams/{id}/tokens':
+    post:
+      tags:
+        - Platform
+      summary: 'Create team token'
+      description: 'Mint an API token inside a platform-managed team, owned by the team service account. Abilities are limited to read, write, deploy and read:sensitive. The plaintext token is returned once. Requires a `platform` token.'
+      operationId: platform-create-team-token
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - name
+                - abilities
+              properties:
+                name:
+                  type: string
+                abilities:
+                  type: array
+                  items: { type: string, enum: [read, write, deploy, 'read:sensitive'] }
+                expires_at:
+                  type: [string, 'null']
+                  format: date-time
+              type: object
+      responses:
+        '201':
+          description: 'Token created. `token` is only returned here.'
+          content:
+            application/json:
+              schema:
+                properties:
+                  id: { type: integer }
+                  token: { type: string }
+                type: object
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          description: 'Not a platform token.'
+        '404':
+          $ref: '#/components/responses/404'
+        '422':
+          $ref: '#/components/responses/422'
+      security:
+        -
+          bearerAuth: []
+  '/platform/teams/{id}/tokens/{tokenId}':
+    delete:
+      tags:
+        - Platform
+      summary: 'Revoke team token'
+      description: 'Revoke a token owned by the team service account. Requires a `platform` token.'
+      operationId: platform-revoke-team-token
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        -
+          name: tokenId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 'Token revoked.'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          description: 'Not a platform token.'
+        '404':
+          $ref: '#/components/responses/404'
+      security:
+        -
+          bearerAuth: []
+  '/platform/teams/{id}/github-apps/{githubAppUuid}/share':
+    post:
+      tags:
+        - Platform
+      summary: 'Share GitHub App'
+      description: 'Let a platform-managed team deploy from a GitHub App marked shareable by its owning team. The team can use the source but cannot read its secrets, update or delete it. Requires a `platform` token.'
+      operationId: platform-share-github-app
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        -
+          name: githubAppUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Shared.
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          description: 'Not a platform token.'
+        '404':
+          $ref: '#/components/responses/404'
+        '422':
+          description: 'The GitHub App is not shareable or already belongs to the team.'
+      security:
+        -
+          bearerAuth: []
+    delete:
+      tags:
+        - Platform
+      summary: 'Unshare GitHub App'
+      description: 'Stop sharing a GitHub App with a platform-managed team. Requires a `platform` token.'
+      operationId: platform-unshare-github-app
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        -
+          name: githubAppUuid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Unshared.
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          description: 'Not a platform token.'
+        '404':
+          $ref: '#/components/responses/404'
+      security:
+        -
+          bearerAuth: []
+  '/platform/teams/{id}/infisical-connection':
+    post:
+      tags:
+        - Platform
+      summary: 'Set Infisical connection'
+      description: 'Create or update the Infisical connection of a platform-managed team. Credentials are encrypted at rest and never returned. On update, omitted credentials stay unchanged. Setting `is_enabled` to true for the first time starts the same adoption as the UI. Requires a `platform` token.'
+      operationId: platform-set-infisical-connection
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - host
+                - infisical_project_id
+              properties:
+                host:
+                  type: string
+                  example: 'https://app.infisical.com'
+                client_id:
+                  description: 'Required on create.'
+                  type: string
+                client_secret:
+                  description: 'Required on create.'
+                  type: string
+                infisical_org_id:
+                  type: [string, 'null']
+                infisical_project_id:
+                  type: string
+                name:
+                  description: 'Defaults to "Infisical".'
+                  type: string
+                is_enabled:
+                  type: boolean
+              type: object
+      responses:
+        '201':
+          description: 'Connection created.'
+        '200':
+          description: 'Connection updated.'
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          description: 'Not a platform token.'
+        '404':
+          $ref: '#/components/responses/404'
+        '422':
+          $ref: '#/components/responses/422'
+      security:
+        -
+          bearerAuth: []
   /projects:
     get:
       tags:
@@ -14689,6 +15066,24 @@ components:
         preview:
           $ref: '#/components/schemas/ApplicationPreview'
       type: object
+    PlatformTeam:
+      description: 'A team as seen by the platform API.'
+      properties:
+        id:
+          type: integer
+        uuid:
+          type: string
+          nullable: true
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        is_platform_managed:
+          type: boolean
+        created_at:
+          type: string
+      type: object
     VolumeBackupScheduleRequest:
       required:
         - frequency
@@ -15929,6 +16324,9 @@ tags:
   -
     name: Notifications
     description: Notifications
+  -
+    name: Platform
+    description: Platform
   -
     name: Projects
     description: Projects

@@ -41,6 +41,9 @@ class ApiTokens extends Component
     public bool $canUseRootPermissions = false;
 
     #[Locked]
+    public bool $canUsePlatformPermissions = false;
+
+    #[Locked]
     public bool $canUseWritePermissions = false;
 
     #[Locked]
@@ -58,6 +61,7 @@ class ApiTokens extends Component
     {
         $this->isApiEnabled = InstanceSettings::get()->is_api_enabled;
         $this->canUseRootPermissions = auth()->user()->can('useRootPermissions', PersonalAccessToken::class);
+        $this->canUsePlatformPermissions = auth()->user()->can('usePlatformPermissions', PersonalAccessToken::class);
         $this->canUseWritePermissions = auth()->user()->can('useWritePermissions', PersonalAccessToken::class);
         $this->canUseDeployPermissions = auth()->user()->can('useDeployPermissions', PersonalAccessToken::class);
         $this->canUseSensitivePermissions = auth()->user()->can('useSensitivePermissions', PersonalAccessToken::class);
@@ -78,6 +82,13 @@ class ApiTokens extends Component
         if ($permissionToUpdate == 'root' && ! auth()->user()->can('useRootPermissions', PersonalAccessToken::class)) {
             $this->dispatch('error', 'You do not have permission to use root permissions.');
             $this->permissions = array_diff($this->permissions, ['root']);
+
+            return;
+        }
+
+        if ($permissionToUpdate == 'platform' && ! auth()->user()->can('usePlatformPermissions', PersonalAccessToken::class)) {
+            $this->dispatch('error', 'Only root team admins can create platform tokens.');
+            $this->permissions = array_values(array_diff($this->permissions, ['platform']));
 
             return;
         }
@@ -103,7 +114,9 @@ class ApiTokens extends Component
             return;
         }
 
-        if ($permissionToUpdate == 'root' && in_array('root', $this->permissions, true)) {
+        if ($permissionToUpdate == 'platform' && in_array('platform', $this->permissions, true)) {
+            $this->permissions = ['platform'];
+        } elseif ($permissionToUpdate == 'root' && in_array('root', $this->permissions, true)) {
             $this->permissions = ['root'];
         } elseif ($permissionToUpdate == 'read:sensitive' && ! in_array('read', $this->permissions, true)) {
             $this->permissions[] = 'read';
@@ -126,13 +139,22 @@ class ApiTokens extends Component
                 'description' => 'required|min:3|max:255',
                 'expiresInDays' => 'nullable|integer|in:7,30,60,90,365',
                 'permissions' => 'required|array|min:1',
-                'permissions.*' => ['required', 'string', Rule::in(['read', 'read:sensitive', 'write', 'write:sensitive', 'deploy', 'root'])],
+                'permissions.*' => ['required', 'string', Rule::in(['read', 'read:sensitive', 'write', 'write:sensitive', 'deploy', 'root', 'platform'])],
             ]);
             $permissions = array_values($validated['permissions']);
 
             // Re-evaluate policies fresh against the current authenticated user.
             // Never trust $this->canUse* booleans — they come from the Livewire
             // snapshot which can be replayed from another user's session.
+            if (in_array('platform', $permissions, true)) {
+                if (! auth()->user()->can('usePlatformPermissions', PersonalAccessToken::class)) {
+                    throw new \Exception('Only root team admins can create platform tokens.');
+                }
+                if ($permissions !== ['platform']) {
+                    throw new \Exception('A platform token cannot have other permissions.');
+                }
+            }
+
             if (in_array('root', $permissions, true) && ! auth()->user()->can('useRootPermissions', PersonalAccessToken::class)) {
                 throw new \Exception('You do not have permission to create tokens with root permissions.');
             }

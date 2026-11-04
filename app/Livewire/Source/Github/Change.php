@@ -67,6 +67,8 @@ class Change extends Component
 
     public bool $isSystemWide;
 
+    public bool $isShareable = false;
+
     public ?int $privateKeyId = null;
 
     public ?string $contents = null;
@@ -102,6 +104,7 @@ class Change extends Component
             'clientSecret' => 'nullable|string',
             'webhookSecret' => 'nullable|string',
             'isSystemWide' => 'required|bool',
+            'isShareable' => 'required|bool',
             'contents' => 'nullable|string',
             'metadata' => 'nullable|string',
             'pullRequests' => 'nullable|string',
@@ -151,6 +154,7 @@ class Change extends Component
             $this->github_app->client_secret = $this->clientSecret;
             $this->github_app->webhook_secret = $this->webhookSecret;
             $this->github_app->is_system_wide = $this->isSystemWide;
+            $this->github_app->is_shareable = $this->isShareable;
             $this->github_app->private_key_id = $this->privateKeyId;
             $this->github_app->contents = $this->contents;
             $this->github_app->metadata = $this->metadata;
@@ -170,6 +174,7 @@ class Change extends Component
             $this->clientSecret = $canUpdate ? $this->github_app->client_secret : null;
             $this->webhookSecret = $canUpdate ? $this->github_app->webhook_secret : null;
             $this->isSystemWide = $this->github_app->is_system_wide;
+            $this->isShareable = (bool) $this->github_app->is_shareable;
             $this->privateKeyId = $this->github_app->private_key_id;
             $this->contents = $this->github_app->contents;
             $this->metadata = $this->github_app->metadata;

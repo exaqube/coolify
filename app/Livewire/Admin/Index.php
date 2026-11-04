@@ -66,7 +66,7 @@ class Index extends Component
         $this->authorizeRootOnly();
         session(['impersonator_id' => Auth::id(), 'impersonating' => true]);
         $user = User::find($user_id);
-        if (! $user) {
+        if (! $user || $user->is_service_account) {
             abort(404);
         }
         $team_to_switch_to = $user->resolveStoredTeam() ?? $user->teams->first();

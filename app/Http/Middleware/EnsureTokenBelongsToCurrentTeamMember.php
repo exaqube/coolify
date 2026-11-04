@@ -18,6 +18,11 @@ class EnsureTokenBelongsToCurrentTeamMember
             return response()->json(['message' => 'Invalid token.'], 401);
         }
 
+        // Platform tokens manage teams through /api/v1/platform only and never act inside a team.
+        if (in_array('platform', $token->abilities ?? [], true)) {
+            return response()->json(['message' => 'Platform tokens can only call /api/v1/platform endpoints.'], 403);
+        }
+
         $team = $user->teams()
             ->where('teams.id', $teamId)
             ->first();

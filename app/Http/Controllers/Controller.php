@@ -194,7 +194,7 @@ class Controller extends BaseController
                 fn (TeamInvitation $invitation) => $this->invitationLinkMatchesToken($invitation, $token)
             );
 
-        if (! $user || ! $invitation || $invitation->hasExpired() || ! $this->invitationLinkMatchesToken($invitation, $token)) {
+        if (! $user || $user->is_service_account || ! $invitation || $invitation->hasExpired() || ! $this->invitationLinkMatchesToken($invitation, $token)) {
             return null;
         }
 
