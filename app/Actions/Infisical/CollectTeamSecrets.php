@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\SharedEnvironmentVariable;
 use App\Models\Team;
 use App\Services\Infisical\InfisicalPath;
+use App\Services\Infisical\InfisicalPathCollisionException;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Lorisleiva\Actions\Concerns\AsAction;
@@ -23,8 +24,11 @@ class CollectTeamSecrets
      * Server-scoped shared variables are excluded: servers are orthogonal to
      * the project/environment tree and are out of scope per the spec.
      *
-     * Team- and project-scoped variables are REPLICATED into every
-     * environment, because Infisical has no cross-environment scope. Where a
+     * Team-scoped variables are REPLICATED into every environment of the
+     * team, and project-scoped variables into every environment OF THAT
+     * PROJECT, because Infisical has no cross-environment scope. A project's
+     * folders are never written to or read from another project's
+     * environments, even though they share one Infisical project. Where a
      * key exists at both project and environment scope the environment value
      * wins, matching Coolify's own precedence.
      *
@@ -53,9 +57,9 @@ class CollectTeamSecrets
      *   It is null on every replicated bucket, because a replicated bucket is
      *   reached once per environment and an Infisical-only key would otherwise
      *   produce one duplicate row per environment for one logical variable.
-     *   Team-scoped and cross-project `/{project}/` buckets are therefore
-     *   push-and-update only; a genuinely new key discovered in Infisical can
-     *   only be created at environment or resource scope.
+     *   Team-scoped buckets are therefore push-and-update only; a genuinely
+     *   new key discovered in Infisical can only be created at environment or
+     *   resource scope.
      * - `writers` — `key => fn (string $value): void` for values that are not
      *   variable rows at all: the database credential COLUMNS on the
      *   `Standalone*` models, keyed by the uppercased column name
@@ -133,8 +137,10 @@ class CollectTeamSecrets
         $projects = $team->projects()->with('environments')->get();
         InfisicalPath::assertNoCollisions($projects->pluck('name')->all());
 
-        // Environment slugs are team-wide: Infisical environments live on the
-        // project (= the Coolify team), not on a Coolify project. Two
+        // The Infisical project (= the Coolify team) holds the union of every
+        // Coolify project's environments, because environments live on the
+        // Infisical project. Only the team root '/' is replicated across that
+        // whole union; project folders stay in their own project's slugs. Two
         // differently named Coolify environments that slug alike would collapse
         // into one Infisical environment, so that is an error, while two
         // projects both owning "Production" is not.
@@ -171,10 +177,10 @@ class CollectTeamSecrets
             }
 
             // Promotion. `/{project}/` is first reached as a replicated
-            // project-scoped bucket in EVERY environment slug of the team, but
-            // in the environments that actually belong to this project it gains
-            // an unambiguous, non-duplicating creation target: one
-            // environment-scoped row in that one environment.
+            // project-scoped bucket in every environment of the project, and
+            // in each of those environments it then gains an unambiguous,
+            // non-duplicating creation target: one environment-scoped row in
+            // that one environment.
             if ($create !== null && $buckets[$id]['create'] === null) {
                 $buckets[$id]['scope'] = $scope;
                 $buckets[$id]['replicated'] = $replicated;
@@ -252,10 +258,14 @@ class CollectTeamSecrets
                 continue;
             }
 
-            // Project scope -> '/{project}/' in every environment.
+            // Project scope -> '/{project}/' in THIS project's environments
+            // only. The team shares one Infisical project, so the team-wide
+            // slug union also holds every other project's environments;
+            // writing or reading '/{project}/' there is what put each project's
+            // folder into every other project's environments.
             $projectRows = null;
 
-            foreach ($environmentSlugs as $envSlug) {
+            foreach (self::projectEnvironmentSlugs($project) as $envSlug) {
                 if (! $wants($envSlug, $projectPath)) {
                     continue;
                 }
@@ -313,6 +323,23 @@ class CollectTeamSecrets
         }
 
         return $buckets;
+    }
+
+    /**
+     * The Infisical environment slugs a Coolify project owns. `/{project}/`
+     * and everything under it may only live in these.
+     *
+     * @return array<int, string>
+     *
+     * @throws InfisicalPathCollisionException
+     */
+    public static function projectEnvironmentSlugs(Project $project): array
+    {
+        return $project->environments
+            ->map(fn (Environment $environment) => InfisicalPath::environmentSlug($environment->name))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**

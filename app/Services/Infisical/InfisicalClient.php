@@ -147,6 +147,60 @@ class InfisicalClient
     }
 
     /**
+     * Every secret in an environment, read recursively in one request, as
+     * `folder path => [key => value]`. Paths are `/`-terminated like
+     * InfisicalPath builds them. A value the identity may not read is null.
+     *
+     * @return array<string, array<string, ?string>>
+     *
+     * @throws InfisicalApiException
+     */
+    public function fetchEnvironmentSecrets(string $projectId, string $environmentSlug): array
+    {
+        $response = $this->send('get', '/api/v3/secrets/raw', [
+            'workspaceId' => $projectId,
+            'environment' => $environmentSlug,
+            'secretPath' => '/',
+            'recursive' => 'true',
+            'include_imports' => 'false',
+        ], 'read environment secrets');
+
+        $tree = [];
+
+        foreach ($response->json('secrets', []) as $secret) {
+            $key = data_get($secret, 'secretKey');
+            if ($key === null) {
+                continue;
+            }
+
+            $path = rtrim((string) data_get($secret, 'secretPath', '/'), '/').'/';
+            $tree[$path][$key] = data_get($secret, 'secretValueHidden') ? null : (string) data_get($secret, 'secretValue', '');
+        }
+
+        return $tree;
+    }
+
+    /**
+     * Delete one folder, and everything in it, under `$parentPath`.
+     *
+     * @throws InfisicalApiException
+     */
+    public function deleteFolder(string $projectId, string $environmentSlug, string $parentPath, string $name): void
+    {
+        $response = $this->raw('delete', '/api/v1/folders/'.rawurlencode($name), [
+            'workspaceId' => $projectId,
+            'environment' => $environmentSlug,
+            'path' => $parentPath,
+        ]);
+
+        if ($response->status() === 404) {
+            return;
+        }
+
+        $this->throwUnlessSuccessful($response, 'delete folder');
+    }
+
+    /**
      * @throws InfisicalApiException
      */
     public function deleteEnvironment(string $projectId, string $environmentId): void

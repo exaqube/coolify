@@ -103,7 +103,7 @@ jobs:
         # which belongs in its own workflow rather than gating every PR.
         include:
           - suite: Infisical
-            paths: tests/Unit/InfisicalPathTest.php tests/Feature/InfisicalAuthorizationTest.php tests/Feature/InfisicalClientTest.php tests/Feature/InfisicalInjectionTest.php tests/Feature/InfisicalLockTest.php tests/Feature/InfisicalModelTest.php tests/Feature/InfisicalSettingsTest.php tests/Feature/InfisicalSharedVariablesScreenTest.php tests/Feature/InfisicalSystemWritesTest.php tests/Feature/InfisicalServiceEditTest.php
+            paths: tests/Unit/InfisicalPathTest.php tests/Feature/InfisicalAuthorizationTest.php tests/Feature/InfisicalClientTest.php tests/Feature/InfisicalInjectionTest.php tests/Feature/InfisicalLockTest.php tests/Feature/InfisicalModelTest.php tests/Feature/InfisicalSettingsTest.php tests/Feature/InfisicalSharedVariablesScreenTest.php tests/Feature/InfisicalSystemWritesTest.php tests/Feature/InfisicalServiceEditTest.php tests/Feature/InfisicalScopedEnvironmentsTest.php
           - suite: Notifications
             paths: tests/Unit/SendMessageToMicrosoftTeamsJobTest.php
           - suite: Updates

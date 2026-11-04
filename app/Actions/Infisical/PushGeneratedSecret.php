@@ -72,8 +72,8 @@ class PushGeneratedSecret
      * The Infisical folders one Coolify row belongs in, using the same
      * scope-to-path rules CollectTeamSecrets walks with.
      *
-     * Team- and project-scoped shared variables are replicated into every
-     * environment, because Infisical has no cross-environment scope.
+     * Team-scoped shared variables are replicated into every environment of
+     * the team, project-scoped ones into that project's environments only.
      *
      * @return array{teamId: int, folders: array<int, array{0: string, 1: string}>}|array{}
      *
@@ -126,7 +126,8 @@ class PushGeneratedSecret
             $path = InfisicalPath::forProject($project->name);
             $folders = [];
 
-            foreach ($this->environmentSlugsForTeam((int) $row->team_id) as $slug) {
+            // The project's own environments only, never the team-wide union.
+            foreach (CollectTeamSecrets::projectEnvironmentSlugs($project) as $slug) {
                 $folders[] = [$slug, $path];
             }
 
