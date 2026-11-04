@@ -224,7 +224,7 @@ it('plans the strays without deleting anything', function () {
     ])
         ->and($items['folder:a:/bravo/'])->toMatchArray(['secret_count' => 1, 'safe' => true, 'project' => 'bravo'])
         ->and($items['folder:x:/alpha/'])->toMatchArray(['secret_count' => 1, 'safe' => false, 'different' => ['/alpha/ALPHA_KEY']])
-        ->and($items['folder:y:/alpha/'])->toMatchArray(['secret_count' => 0, 'safe' => true])
+        ->and($items['folder:y:/alpha/'])->toMatchArray(['secret_count' => 0, 'safe' => true, 'correct_environments' => ['a', 'b']])
         ->and($items['environment:zz'])->toMatchArray(['secret_count' => 0, 'safe' => true])
         ->and($plan['unmatched_folders'])->toBe([['environment' => 'a', 'path' => '/ops/', 'secret_count' => 1]])
         ->and($this->infisical)->toBe($before);

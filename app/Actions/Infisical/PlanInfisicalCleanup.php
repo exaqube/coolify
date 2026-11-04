@@ -136,7 +136,7 @@ class PlanInfisicalCleanup
         $keys = [];
         $missing = [];
         $different = [];
-        $correct = [];
+        $correct = $kind === 'folder' ? array_diff($correctFor($path), [$slug]) : [];
 
         foreach ($subtree as $secretPath => $secrets) {
             $targets = array_values(array_diff($correctFor($secretPath), [$slug]));
