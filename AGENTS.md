@@ -140,6 +140,7 @@ Because the "server" and the test share one PHP process, they share the phpunit 
 - REST API at `/api/v1/` with OpenAPI 3.0 attributes (`use OpenApi\Attributes as OA`) for auto-generated docs
 - Authentication via Laravel Sanctum with custom `ApiAbility` middleware for token abilities (read, write, deploy)
 - `platform` ability: root-team-only tokens for `/api/v1/platform` (create teams, mint their tokens, share GitHub Apps, set Infisical). Never implied by `root`/`*`, refused on every team endpoint. See [`docs/platform-api.md`](docs/platform-api.md)
+- Infisical sync (`app/Actions/Infisical/`): one Infisical project per team, holding the union of the team's environment slugs. The team root `/` is replicated into every environment; `/{project}/…` is written and read only in that Coolify project's own environments (`CollectTeamSecrets::projectEnvironmentSlugs`). `php artisan infisical:cleanup-plan {team?}` (read-only) lists folders and environments the old team-wide layout left behind into `storage/app/infisical-cleanup-*.{json,md}`; `infisical:cleanup-apply {plan.json} --confirm` deletes only reviewed items whose secrets exist, equal by hash, in the correct location. Never schedule either.
 - `ApiSensitiveData` middleware masks sensitive fields (IDs, credentials) in responses
 - API controllers in `app/Http/Controllers/Api/` use inline `Validator` (not Form Request classes)
 - Response serialization via `serializeApiResponse()` helper
