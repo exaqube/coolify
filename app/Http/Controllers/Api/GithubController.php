@@ -92,10 +92,7 @@ class GithubController extends Controller
             return invalidTokenResponse();
         }
 
-        $githubApps = GithubApp::where(function ($query) use ($teamId) {
-            $query->where('team_id', $teamId)
-                ->orWhere('is_system_wide', true);
-        })->get();
+        $githubApps = GithubApp::usableByTeam($teamId)->get();
 
         $githubApps = $githubApps->map(function ($app) use ($teamId) {
             return $this->removeSensitiveData($app, $teamId);
@@ -356,7 +353,7 @@ class GithubController extends Controller
 
         try {
             $githubApp = GithubApp::where('id', $github_app_id)
-                ->where('team_id', $teamId)
+                ->usableByTeam($teamId)
                 ->firstOrFail();
 
             $token = generateGithubInstallationToken($githubApp);
@@ -473,7 +470,7 @@ class GithubController extends Controller
 
         try {
             $githubApp = GithubApp::where('id', $github_app_id)
-                ->where('team_id', $teamId)
+                ->usableByTeam($teamId)
                 ->firstOrFail();
 
             $token = generateGithubInstallationToken($githubApp);
@@ -543,6 +540,7 @@ class GithubController extends Controller
                         'webhook_secret' => ['type' => 'string', 'description' => 'GitHub Webhook Secret'],
                         'private_key_uuid' => ['type' => 'string', 'description' => 'Private key UUID'],
                         'is_system_wide' => ['type' => 'boolean', 'description' => 'Is system wide (non-cloud instances only)'],
+                        'is_shareable' => ['type' => 'boolean', 'description' => 'Whether the platform API may share this app with other teams. Owning team admins only.'],
                     ]
                 )
             )
@@ -594,6 +592,7 @@ class GithubController extends Controller
                 'client_secret',
                 'webhook_secret',
                 'private_key_uuid',
+                'is_shareable',
             ];
 
             if (! isCloud()) {
@@ -646,6 +645,9 @@ class GithubController extends Controller
             }
             if (! isCloud() && isset($payload['is_system_wide'])) {
                 $rules['is_system_wide'] = 'boolean';
+            }
+            if (array_key_exists('is_shareable', $payload)) {
+                $rules['is_shareable'] = 'boolean';
             }
 
             $validator = customApiValidator($payload, $rules);

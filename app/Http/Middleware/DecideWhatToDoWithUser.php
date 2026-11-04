@@ -12,6 +12,13 @@ class DecideWhatToDoWithUser
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Safety net: a platform service account never holds a web session, however it got one.
+        if (auth()->user()?->is_service_account) {
+            auth()->guard('web')->logout();
+            $request->session()->invalidate();
+
+            return redirect()->route('login');
+        }
         if (auth()?->user()?->teams?->count() === 0) {
             $currentTeam = auth()->user()?->recreate_personal_team();
             refreshSession($currentTeam);

@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Enums\GithubRunnerStatus;
 use App\Traits\Auditable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\DB;
 
 class GithubApp extends BaseModel
@@ -31,6 +33,7 @@ class GithubApp extends BaseModel
         'client_secret',
         'webhook_secret',
         'is_system_wide',
+        'is_shareable',
         'is_public',
         'contents',
         'metadata',
@@ -47,6 +50,7 @@ class GithubApp extends BaseModel
     protected $casts = [
         'is_public' => 'boolean',
         'is_system_wide' => 'boolean',
+        'is_shareable' => 'boolean',
         'type' => 'string',
         'webhook_events' => 'array',
         'runner_group_id' => 'integer',
@@ -98,9 +102,31 @@ class GithubApp extends BaseModel
         });
     }
 
+    /**
+     * Sources a team may deploy from: its own, system-wide ones, and shareable ones shared with it.
+     * Use this for reading and deploying only; editing stays limited to the owning team.
+     */
+    public function scopeUsableByTeam(Builder $query, int $teamId): Builder
+    {
+        return $query->where(fn (Builder $query) => $query
+            ->where('team_id', $teamId)
+            ->orWhere('is_system_wide', true)
+            ->orWhere(fn (Builder $query) => $query
+                ->where('is_shareable', true)
+                ->whereHas('sharedTeams', fn (Builder $teams) => $teams->where('teams.id', $teamId))));
+    }
+
     public function team()
     {
         return $this->belongsTo(Team::class);
+    }
+
+    /**
+     * Teams this source is shared with through the platform API.
+     */
+    public function sharedTeams(): BelongsToMany
+    {
+        return $this->belongsToMany(Team::class, 'github_app_team')->withTimestamps();
     }
 
     public function applications()

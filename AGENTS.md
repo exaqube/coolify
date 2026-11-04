@@ -139,6 +139,7 @@ Because the "server" and the test share one PHP process, they share the phpunit 
 ### API Layer
 - REST API at `/api/v1/` with OpenAPI 3.0 attributes (`use OpenApi\Attributes as OA`) for auto-generated docs
 - Authentication via Laravel Sanctum with custom `ApiAbility` middleware for token abilities (read, write, deploy)
+- `platform` ability: root-team-only tokens for `/api/v1/platform` (create teams, mint their tokens, share GitHub Apps, set Infisical). Never implied by `root`/`*`, refused on every team endpoint. See [`docs/platform-api.md`](docs/platform-api.md)
 - `ApiSensitiveData` middleware masks sensitive fields (IDs, credentials) in responses
 - API controllers in `app/Http/Controllers/Api/` use inline `Validator` (not Form Request classes)
 - Response serialization via `serializeApiResponse()` helper

@@ -108,6 +108,8 @@ jobs:
             paths: tests/Unit/SendMessageToMicrosoftTeamsJobTest.php
           - suite: Updates
             paths: tests/Unit/UpdateCoolifyTest.php tests/Feature/CheckForUpdatesUpstreamTest.php
+          - suite: Platform
+            paths: tests/Feature/Api/PlatformApiTest.php tests/Feature/Api/GithubAppsListApiTest.php tests/Feature/Api/TeamTokenTeamApiTest.php
     steps:
       - uses: actions/checkout@v5
         with:

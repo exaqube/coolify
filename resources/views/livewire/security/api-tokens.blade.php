@@ -69,39 +69,54 @@
                                         <x-forms.checkbox id="permission-root" label="Root" fullWidth
                                             wire:model.live="permissions" domValue="root"
                                             helper="Full access to every API operation."
-                                            :checked="in_array('root', $permissions)" :disabled="!$canUseRootPermissions" />
+                                            :checked="in_array('root', $permissions)" :disabled="!$canUseRootPermissions || in_array('platform', $permissions)" />
                                     </div>
+                                    @if ($canUsePlatformPermissions)
+                                        <div class="listbox-option p-0!">
+                                            <x-forms.checkbox id="permission-platform" label="Platform" fullWidth
+                                                wire:model.live="permissions" domValue="platform"
+                                                helper="Create teams, mint their tokens and share sources through /api/v1/platform. Cannot act inside a team."
+                                                :checked="in_array('platform', $permissions)" />
+                                        </div>
+                                    @endif
                                     <div class="listbox-option p-0!">
                                         <x-forms.checkbox id="permission-write" label="Write" fullWidth
                                             wire:model.live="permissions" domValue="write"
                                             helper="Create and update resources."
                                             :checked="in_array('write', $permissions)"
-                                            :disabled="in_array('root', $permissions) || !$canUseWritePermissions" />
+                                            :disabled="(bool) array_intersect(['root', 'platform'], $permissions) || !$canUseWritePermissions" />
                                     </div>
                                     <div class="listbox-option p-0!">
                                         <x-forms.checkbox id="permission-deploy" label="Deploy" fullWidth
                                             wire:model.live="permissions" domValue="deploy"
                                             helper="Trigger deployments through webhooks."
                                             :checked="in_array('deploy', $permissions)"
-                                            :disabled="in_array('root', $permissions) || !$canUseDeployPermissions" />
+                                            :disabled="(bool) array_intersect(['root', 'platform'], $permissions) || !$canUseDeployPermissions" />
                                     </div>
                                     <div class="listbox-option p-0!">
                                         <x-forms.checkbox id="permission-read" label="Read" fullWidth
                                             wire:model.live="permissions" domValue="read"
                                             helper="Read non-sensitive resource data."
                                             :checked="in_array('read', $permissions)"
-                                            :disabled="in_array('root', $permissions)" />
+                                            :disabled="(bool) array_intersect(['root', 'platform'], $permissions)" />
                                     </div>
                                     <div class="listbox-option p-0!">
                                         <x-forms.checkbox id="permission-read-sensitive" label="Read sensitive data"
                                             fullWidth wire:model.live="permissions" domValue="read:sensitive"
                                             helper="Include secrets, logs, passwords, and Compose content."
                                             :checked="in_array('read:sensitive', $permissions)"
-                                            :disabled="in_array('root', $permissions) || !$canUseSensitivePermissions" />
+                                            :disabled="(bool) array_intersect(['root', 'platform'], $permissions) || !$canUseSensitivePermissions" />
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        @if (in_array('platform', $permissions))
+                            <div class="mt-4">
+                                <x-callout type="warning" title="Platform token">
+                                    This token can create teams on this instance and mint API tokens for them. Store it like a root credential and revoke it when it is no longer needed.
+                                </x-callout>
+                            </div>
+                        @endif
                     </x-application.settings-section>
                 </form>
             @endcan
@@ -120,6 +135,12 @@
                         </div>
                     </div>
                 </x-application.settings-section>
+            @endif
+
+            @if ($tokens->contains(fn ($token) => in_array('platform', $token->abilities ?? [], true)))
+                <x-callout type="warning" title="Platform tokens issued">
+                    Platform tokens can create teams and mint tokens for them. Revoke any you no longer use.
+                </x-callout>
             @endif
 
             <x-application.settings-section title="Issued tokens" flush>
@@ -201,7 +222,7 @@
                                         @foreach ($token->abilities ?? [] as $ability)
                                             <span @class([
                                                 'inline-flex min-h-5 items-center rounded-md border px-2 py-0.5 text-[10px] font-medium',
-                                                'border-error/20 bg-error/10 text-error' => $ability === 'root',
+                                                'border-error/20 bg-error/10 text-error' => in_array($ability, ['root', 'platform']),
                                                 'border-warning/20 bg-warning/10 text-warning' => in_array($ability, ['write', 'write:sensitive']),
                                                 'border-coollabs/20 bg-coollabs/10 text-coollabs dark:border-warning/20 dark:bg-warning/10 dark:text-warning' => $ability === 'deploy',
                                                 'border-neutral-200 bg-neutral-100 text-neutral-600 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-fg-dim' => in_array($ability, ['read', 'read:sensitive']),

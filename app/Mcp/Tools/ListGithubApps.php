@@ -33,9 +33,7 @@ class ListGithubApps extends Tool
         $args = $this->paginationArgs($request);
 
         $query = GithubApp::query()
-            ->where(function ($q) use ($teamId) {
-                $q->where('team_id', $teamId)->orWhere('is_system_wide', true);
-            })
+            ->usableByTeam($teamId)
             ->orderBy('name');
 
         $total = (clone $query)->count();

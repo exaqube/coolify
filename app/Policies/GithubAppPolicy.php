@@ -24,7 +24,13 @@ class GithubAppPolicy
             return true;
         }
 
-        return $user->teams->contains('id', $githubApp->team_id);
+        if ($user->teams->contains('id', $githubApp->team_id)) {
+            return true;
+        }
+
+        // Shared through the platform API: usable (not editable) by the teams it is shared with.
+        return $githubApp->is_shareable
+            && $githubApp->sharedTeams()->whereIn('teams.id', $user->teams->pluck('id'))->exists();
     }
 
     /**

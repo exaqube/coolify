@@ -151,6 +151,15 @@
                                             @endif
                                         @endif
 
+                                        <div class="lg:col-span-2">
+                                            <x-forms.listbox canGate="update" :canResource="$github_app" id="isShareable" label="Platform sharing" :options="[
+                                                ['value' => false, 'label' => 'Not shareable'],
+                                                ['value' => true, 'label' => 'Shareable with platform teams'],
+                                            ]"
+                                                helper="A platform token can share a shareable app with teams it creates. Those teams can deploy from it but cannot view its secrets, edit or delete it."
+                                                :disabled="!auth()->user()->can('update', $github_app)" />
+                                        </div>
+
                                         <x-forms.input canGate="update" :canResource="$github_app" id="htmlUrl"
                                             label="HTML URL" />
                                         <x-forms.input canGate="update" :canResource="$github_app" id="apiUrl"

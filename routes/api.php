@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\InstanceEmailSettingsController;
 use App\Http\Controllers\Api\IntegrationTokensController;
 use App\Http\Controllers\Api\NotificationsController;
 use App\Http\Controllers\Api\OtherController;
+use App\Http\Controllers\Api\PlatformController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ResourcesController;
 use App\Http\Controllers\Api\S3StoragesController;
@@ -447,6 +448,23 @@ Route::group([
     Route::delete('/services/{uuid}/scheduled-tasks/{task_uuid}', [ScheduledTasksController::class, 'delete_scheduled_task_by_service_uuid'])->middleware(['api.ability:write']);
     Route::get('/services/{uuid}/scheduled-tasks/{task_uuid}/executions', [ScheduledTasksController::class, 'executions_by_service_uuid'])->middleware(['api.ability:read']);
     Route::post('/services/{uuid}/scheduled-tasks/{task_uuid}/execute', [ScheduledTasksController::class, 'execute_scheduled_task_by_service_uuid'])->middleware(['api.ability:write']);
+});
+
+// Platform API: team provisioning with a root-team `platform` token. Never accepts team tokens
+// (and `root` does not imply `platform`); team tokens are minted here and used on the routes above.
+Route::group([
+    'middleware' => ['auth:sanctum', ApiAllowed::class, 'api.ability:platform'],
+    'prefix' => 'v1/platform',
+], function () {
+    Route::get('/teams', [PlatformController::class, 'listTeams']);
+    Route::post('/teams', [PlatformController::class, 'createTeam']);
+    Route::get('/teams/{id}', [PlatformController::class, 'getTeam'])->whereNumber('id');
+    Route::delete('/teams/{id}', [PlatformController::class, 'deleteTeam'])->whereNumber('id');
+    Route::post('/teams/{id}/tokens', [PlatformController::class, 'createToken'])->whereNumber('id');
+    Route::delete('/teams/{id}/tokens/{tokenId}', [PlatformController::class, 'revokeToken'])->whereNumber(['id', 'tokenId']);
+    Route::post('/teams/{id}/github-apps/{githubAppUuid}/share', [PlatformController::class, 'shareGithubApp'])->whereNumber('id');
+    Route::delete('/teams/{id}/github-apps/{githubAppUuid}/share', [PlatformController::class, 'unshareGithubApp'])->whereNumber('id');
+    Route::post('/teams/{id}/infisical-connection', [PlatformController::class, 'setInfisicalConnection'])->whereNumber('id');
 });
 
 Route::group([
