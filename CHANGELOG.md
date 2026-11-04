@@ -1845,6 +1845,7 @@ All notable changes to this project will be documented in this file.
 - *(github-runners)* Support deployment and build servers (#12109)
 - *(search)* Add settings search to the command palette (#12111)
 - *(cloudflared)* Add tunnel updates with background container restart
+- *(api)* Platform API for provisioning teams on demand
 
 ### 🐛 Bug Fixes
 
@@ -8045,6 +8046,7 @@ All notable changes to this project will be documented in this file.
 - *(api)* Document audit events and fix the private key update path
 - *(readme)* Remove PetroSky Cloud from big sponsors
 - *(release)* Replace next branch with per-minor release branches
+- Update changelog
 - Update changelog
 - Update changelog
 - Update changelog
